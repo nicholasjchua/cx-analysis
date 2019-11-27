@@ -239,7 +239,7 @@ def dist_two_nodes(token: str, p_id: int, node1: str, node2: str) -> float:
 
 
 def nodes_between_tags(skel_id: str, cfg: Dict, restrict_tag: Union[str, Tuple]= '',
-                       invert: bool=False) -> List[str]:
+                       invert: bool=True, both: bool=False) -> Union[List[str], Tuple]:
     """
     Get a list of node_ids for nodes between two specified tags on a skeleton.
     TODO: allow this to take node_ids for start and end instead
@@ -260,10 +260,14 @@ def nodes_between_tags(skel_id: str, cfg: Dict, restrict_tag: Union[str, Tuple]=
     node_list = skel_compact_detail(skel_id, cfg)
     nodes_within = traverse_nodes(node_list, int(start), int(end))
     # pprint(f"Total nodes: {len(node_list)}, Nodes between tags: {len(nodes_within)}")
+
     if invert:
         restricted = [str(n[0]) for n in node_list if n[0] not in nodes_within]
-        print(f"length total: {len(node_list)} length restricted: {len(restricted)}")
-        return restricted
+        if both:
+            return nodes_within, restricted
+        else:
+            print(f"length total: {len(node_list)} length restricted: {len(restricted)}")
+            return restricted
     else:
         return nodes_within
 
@@ -385,6 +389,7 @@ def out_cx_ids_in_skel(skel_id: str, cfg: Dict, r_nodes: List=None) -> Tuple:
 
     res_code, data = do_post(token, project_url, p_id, op_path, post_data)
     # data['partners'] is how you get the cx_id: [links] dictionary
+    pprint(data)
 
     cx_ids = set()
     cx_ids_excluded = set()
@@ -468,6 +473,7 @@ def cx_data(skel_id: str, cx_id: str, cfg: Dict):
     return link_data, pre_to_check
 
 ### MOVE TO DATA ANALYSIS TOOLS
+'''
 def n_syn_between(skel_data: Dict, pre_id: str, post_id: str):
 
 
@@ -480,5 +486,5 @@ def n_syn_between(skel_data: Dict, pre_id: str, post_id: str):
         for cx_id, links in skel_data[pre_id]['out_cx'].items():
         # Loop across the links in each connector
             for l in links:
-
+'''
 

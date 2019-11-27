@@ -1,7 +1,7 @@
 import argparse
 import os, sys
 import glob
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 import itertools
 from config.cfg_parser import parse_config_file
 from src.catmaid_queries import *
@@ -38,7 +38,7 @@ def fetch_connectome(cfg: Dict) -> Tuple:
 
     skel_data = {s: {'name': n,  # catmaid neuron name
                      'om': n[2:4],  # which ommatidia this is from, from neuron_name, not 'ommatidia_XY' annotation
-                     'st': [],  # neuron subtype, assign_excl_category forces this to be len 1
+                     'st': [],  # neuron subtype, assign_exclusive_subtype forces this to be len 1
                      'out_cx': [],  # Outgoing connectors
                      'r_nodes': [],  # List of nodes that are in the restricted zone (beyond lamina in this case
                      'r_cx': []}
