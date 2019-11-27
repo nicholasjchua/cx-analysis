@@ -4,6 +4,7 @@ import glob
 from typing import Dict, List, Tuple
 import itertools
 from config.cfg_parser import parse_config_file
+from src.catmaid_queries import *
 
 from numpy.matlib import repmat
 from tqdm import tqdm
@@ -15,138 +16,168 @@ Fetch and organise data from CATMAID
 
 def main():
 
-    cfg = parse_config_file() # see config/default_cfg.json for defaults
+    cfg = parse_config_file()  # see config/default_cfg.json for defaults
+    ### MAIN FETCH ###
 
-    # Predefined neuron categories
-    subtypes = cfg['subtypes']
-    cx_types = [(u, v) for u, v in itertools.permutations(subtypes, 2)]  # all possible pre -> post subtype pairs
+    skel_data, excluded_terminals = fetch_connectome(cfg)
 
-    neuron_data, category_map, excluded_terminals = gather_data(cfg)
-    adj_mat, synapse_data, skel_ref = connectivity_data(neuron_data, category_map, cfg,
-                                                        filter_connectors=excluded_terminals)
+    cx_types = [(u, v) for u, v in itertools.permutations(cfg['subtypes'], 2)]
 
-
-def gather_data(cfg: Dict) -> Tuple:
+def fetch_connectome(cfg: Dict) -> Tuple:
     """
-    Get all neuron data in a hash indexed by skel_id. Also generates a hash of skel_ids belonging to the
-    :param token: User's Catmaid access token
-    :param p_id: Project ID
-    :param annot: str/id of the annotation associated with the skeletons to be analyzed
-    :param param: Analysis parameters, uses 'restrict_tag' and 'in_medulla' to restrict analysis to lamina only
-    :returns neuron_data: Dict hashed by skel_id containing each neuron's annotation and partner data
+    Parse data of skeletons annotated with the global annotation in analysis configs
+    :param cfg: Analysis configs
+    :returns skel_data: Dict hashed by skel_id containing name, ommatidia 'om', subtype 'st', outgoing connections 'out
+    cx', restricted nodes and connectors 'r_nodes', 'r_connectors'
     :returns ref:
     """
     # Catmaid Access
-    token = cfg['user_token']
-    p_id = cfg['project_id']
-    annot = cfg['annot']
 
-    skel_ids, neuron_names = skels_in_annot(token, p_id, annot)
-    print(f"Found {len(skel_ids)} skeletons annotated with {annot}")
+    skel_ids, neuron_names = skels_in_annot(cfg['annot'], cfg)
+    print(f"Found {len(skel_ids)} skeletons annotated with {cfg['annot']}")
 
-    neuron_data = {s: {"name": n,  # catmaid neuron name
-                       "group": n[2:4],  # which ommatidia this is from, from neuron_name, not 'ommatidia_XY' annotation
-                       "categories": [],  # neuron subtype
-                       "partner_data": [],  # Outgoing connections, hashed by post-synaptic skel_id
-                       "r_nodes": []}  # List of nodes that are in the restricted zone (beyond lamina in this case)
-                   for s, n in zip(skel_ids, neuron_names)}
+    skel_data = {s: {'name': n,  # catmaid neuron name
+                     'om': n[2:4],  # which ommatidia this is from, from neuron_name, not 'ommatidia_XY' annotation
+                     'st': [],  # neuron subtype, assign_excl_category forces this to be len 1
+                     'out_cx': [],  # Outgoing connectors
+                     'r_nodes': [],  # List of nodes that are in the restricted zone (beyond lamina in this case
+                     'r_cx': []}
+                 for s, n in zip(skel_ids, neuron_names)}
 
-    r_connectors = set()  # will output a list of connector ids in the restriction zone
+    for i, this_skel in tqdm(enumerate(skel_ids)):
+        # 1. Assign each a subtype 'st'
+        this_subtype = assign_excl_category(this_skel, cfg, ignore_classless=True)
+        skel_data[this_skel]["st"] = [this_subtype]
+        # 2. If subtype knowed to traverse medulla, traverse its nodes, determine which nodes are outside lamina
+        if cfg['end_tag'] is not '' and this_subtype in cfg['in_medulla']:
+            r_nodes = nodes_between_tags(this_skel, cfg, invert=True)
+            skel_data[this_skel]['r_nodes'] = r_nodes
 
-    for i, this_skel in enumerate(skel_ids):
-        this_class = assign_category(token, p_id, this_skel, params['subtypes'], ignore_classless=True)
-        neuron_data[this_skel]["categories"] = [this_class]
-        # The traversal to search for restricted nodes is pretty intensive, only check subtypes in 'in_medulla'
-        if param['restrict_tag'] is not None and this_class in param['in_medulla']:
-            r_nodes = nodes_between_tags(token, p_id, this_skel, param['restrict_tag'], invert=True)
-            neuron_data[this_skel]['r_nodes'] = r_nodes
+        # these_out_cx, these_r_cx = cx_in_skel(this_skel, cfg, r_nodes=skel_data[this_skel]['r_nodes'])
+        # skel_data[this_skel]['out_cx'].update('these_out_cx')
+        # skel_data[this_skel]['r_cx'] = these_r_cx
+        skel_data[this_skel]['out_cx'], skel_data[this_skel]['r_cx'] = out_cx_ids_in_skel(this_skel, cfg,
+                                                                                          skel_data['r_nodes'])
 
-        partner_data, these_r_connectors = get_postsynaptic_links(token, p_id, this_skel,
-                                                                  r_nodes=neuron_data[this_skel]['r_nodes'])
-        r_connectors.update(these_r_connectors)
-        neuron_data[this_skel]["partner_data"] = partner_data
 
-    link_df = link_data(token, p_id, neuron_data, params['subtypes'], r_connectors)
-    print(link_df)
+    return skel_data
 
-    cat2ids = dict()
-    cat2ids["om"] = hash_by_om(neuron_data)
-    cat2ids["subtype"] = hash_by_category(neuron_data)
-
-    return neuron_data, cat2ids, list(r_connectors)
-
-def connectivity_data(neuron_data: Dict, cat2ids: Dict, params: Dict, filter_connectors: List=[],
-                      syn_adj_mat: bool=False) -> Tuple:
+def local_adjacency_matrices(skel_data: Dict, cfg: Dict) -> Tuple:
     """
-    Extract presynaptic connection data (aka 'links') from neuron_data and sort it into an adjacency matrix
 
-    TODO: Split this up into 'extract_links' and 'make_adj_mat'?
-    :param neuron_data: Dict hashed by skel_id containing each neuron's annotation and partner data
-    :param cat2ids: Dict hashed by our two categorical fields, 'om' and 'subtype'. Points to lists of skeleton ids
-    :param params: Dict Stores analysis conditions
-    :param filter_connectors: List of connector_ids to be filtered out from the dataset
-    :param syn_adj_mat: Will return an additional adjacency matrix, except counts are expressed per synapse (i.e. each
-    postsynaptic neuron can only make one contact with each synapse)
     """
-    ref_mat = get_ref_mat(params['subtypes'], params['expected_n'], cat2ids)  # each skeleton's position on the adj_mat
-    om_order = sorted(cat2ids["om"].keys())
-    adj_mat = np.zeros((len(om_order), ref_mat.shape[1], ref_mat.shape[1], 2), dtype=int)
-    output_data = dict()
+    om_key, st_key = skel_id_keys(skel_data)  # Keys to the skel_ids associated w an ommatidia or subtype
+    id_mat = get_skel_mat(cfg, om_key, st_key)  # each skeleton's position on the adj_mat
+    om_order = sorted(om_key.keys())
+
+    adj_mat = np.zeros((len(om_order), id_mat.shape[1], id_mat.shape[1]), dtype=int)
+    unknown_post = np.zeros(id_mat.shape[0], dtype=int)
+
 
     for i, om in enumerate(om_order):
-        for j, pre_skel in enumerate(ref_mat[i]):
+        home_skeletons = om_key[om]
+        for j, pre_skel in enumerate(id_mat[i]):
             if pre_skel == '-1':  # cartridges with missing neurons coded with -1 (only allowed for L4)
-                print(f'PRESKEL is -1')
-                adj_mat[i, j, :, 0] = -1
-                adj_mat[i, j, :, 1] = -1
+                adj_mat[i, j, :] = -1
                 continue
             else:
                 # analyze the partner data for each skeleton in our adjacency matrix
-                print(f'PRESKEL:   {pre_skel}')
-                output_data[pre_skel] = analyze_synapses(neuron_data, pre_skel, cat2ids["om"],
-                                                         params['subtypes'], filter_connectors)
-            for k, post_skel in enumerate(ref_mat[i]):
-                if post_skel == '-1':
-                    adj_mat[i, j, k, 0] = -1
-                    adj_mat[i, j, k, 1] = -1
+                print(f'PRESKEL: {pre_skel}')
+                out_cx = skel_data[pre_skel]['out_cx']
+                if len(out_cx) < 1:  # not presynaptic
+                    continue
                 else:
-                    tmp = neuron_data[pre_skel]["partner_data"].get(post_skel, [])
-                    these_links = [link[1] for link in tmp if link[0] not in filter_connectors]
+                    for cx_id, links in out_cx:
+                        for l in links:
 
-                    adj_mat[i, j, k, 0] = len(these_links)
-                    adj_mat[i, j, k, 1] = len(set([data[0] for data in these_links]))
 
-    if syn_adj_mat:
-        return adj_mat[..., 0], adj_mat[..., 1], ref_mat, output_data
-    else:  # only return the raw connection counts
-        return adj_mat[..., 0], ref_mat, output_data
+
+
+
+    return adj_mat, unknown_post
 
 # DATA ORGANISATION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def assign_category(token: str, p_id: int, skel_id: str, cat_list: List, ignore_classless: bool=False) -> str:
+def assign_excl_category(skel_id: str, excl_cats: List, cfg: Dict, ignore_classless: bool=False) -> str:
     """
-    Searches through the annotations of a skeleton to find a match with one of the categories in cat_list
+    Searches through the annotations of a skeleton to find a match with one of the st in excl_list
     Raises an exception if multiple matches are found (i.e. neuron can only belong to one of the categories)
     Can ignore instances where none of the categories are found
-    :param token: str, Catmaid API token
-    :param p_id: int, Project ID
     :param skel_id: str, Skeleton ID
-    :param cat_list: List, Contains str of annotations you want to use as categories
+    :param excl_cats: List, Contains str of annotations you want to use as categories
+    :param cfg: Dict, analysis options
     :param ignore_classless: bool, if False (default), will raise an Exception if a neuron doesn't have any annotions
     in cat_list. If True, returns None instead
     :return: str, the skeleton's category, None if no category was found
     """
-    categories = set(cat_list)
-    annotations = set(annot_in_skel(token, p_id, skel_id))
-    matches = list(categories & annotations)
-    if len(matches) > 1:
-        raise Exception(f"Skeleton {skel_id} can be assigned to more than one category: {matches}")
-    elif len(matches) == 0:
+    categories = set(cfg['subtypes'])
+    annotations = set(annot_in_skel(skel_id, cfg))
+
+    intersect = list(categories & annotations)
+    if len(intersect) > 1:
+        raise Exception(f"Skeleton {skel_id} can be assigned to more than one category: {intersect}")
+    elif len(intersect) == 0:
         if ignore_classless:
             return ''
         else:
             raise Exception(f"Skeleton {skel_id} does not belong to any category in cat_list")
     else:
-        return matches[0]
+        return intersect[0]
+
+def skel_id_keys(skel_data: Dict)-> Tuple:
+
+    om_hash = dict()
+    st_hash = dict()
+
+    for this_id, this_data in skel_data.items():
+        # build {om:[skeleton ids]}
+        if this_data["om"] is None:
+            raise Exception(f"Skeleton {this_id} is not associated with any ommatidia")
+        elif this_data["om"] is List:
+            raise Exception(f"Skeleton {this_id} is associated with more than one ommatidia")
+        else:
+            om_hash.setdefault(this_data["group"], []).append(str(this_id))
+        # build {st:[skeleton ids]}
+        if this_data["st"][0] is None:
+            raise Exception(f"Skeleton {this_id} is not associated with a subtype")
+        elif isinstance(this_data["st"], list) and len(this_data["st"]) > 1:
+            raise Exception(f"Skeleton {this_id} is associated with more than one subtype: {this_data['st']}")
+        else:
+            st_hash.setdefault(this_data["st"][0], []).append(str(this_id))
+
+    return om_hash, st_hash
+
+def get_skel_mat(cfg: Dict, om_hash: Dict, st_hash: Dict) -> np.array:
+    """
+    Get a 2D matrix of skeleton_ids according to their subtype and ommatidia assignment
+
+    :param cfg: Dict, analysis configs
+    :param om_hash: Dict, om -> [skel_ids]
+    :param st_hash: Dict, subtype -> [skel_ids]
+    :return:
+    """
+    om_list = sorted(om_hash.keys())
+    ids = []
+
+    for i, this_om in enumerate(om_list):
+        skels_in_om = om_hash[this_om]
+        tmp = []
+        for ii, this_type in enumerate(cfg['subtypes']):
+            filtered = [str(skel) for skel in skels_in_om if skel in st_hash.get(this_type, [])]
+            if len(filtered) == abs(cfg['expected_n']):
+                tmp = [*tmp, *filtered]
+            # expected_n = -1 means that subtype is allowed to not exist
+            elif len(filtered) == 0 and cfg['expected_n'] == -1:
+                tmp.append('-1')
+                raise Warning(f'Warning: No neuron of type {this_type} found in {this_om}')
+            else:
+                raise Exception(f"Unexpected number of neurons for om: {this_om} subtype: {this_type}."
+                                f"Got the following ids: \n{filtered}")
+
+        ids.append(tmp)
+    ids = np.array(ids, dtype=str)
+    return ids
+
+
 
 
 

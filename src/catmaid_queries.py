@@ -7,7 +7,7 @@ import itertools
 from pprint import pprint
 from glob import glob
 import pandas as pd
-from cartridge_metadata import lamina_subtypes
+#from cartridge_metadata import lamina_subtypes
 
 
 ####################
@@ -328,15 +328,16 @@ def skel_compact_detail(skel_id: str, cfg: Dict) -> List:
 
 
 # CONNECTOR QUERIES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def get_connector_data(skel_id: str, cfg: Dict, r_nodes: List=None) -> Dict:
+def cx_in_skel(skel_id: str, cfg: Dict, r_nodes: List=None) -> Tuple:
     """
-    Similar to above but returns the connectors associated with that neuron
+    Get a Dict of all connectors PRESYNAPTICally associated with a neuron, and the associated link data
+
     :param token:
     :param p_id:
     :param skel_id:
     :param r_str: Optional tag used to filter out links that are not in between the skeleton's root_node and the
     first node tagged with 'r_str'
-    :return:
+    :return connector_data: Dict, with entries for each of its presynaptic connector_ids: [link_data]
     """
     token, p_id, project_url = project_access(cfg)
     op_path = "/connectors/"
@@ -346,8 +347,8 @@ def get_connector_data(skel_id: str, cfg: Dict, r_nodes: List=None) -> Dict:
                  "with_partners": True}
 
     res_code, data = do_post(token, project_url, p_id, op_path, post_data)
+    # data['partners'] is how you get the cx_id: [links] dictionary
 
-    connector_ids = set()
     r_connectors = set()
     connector_data = dict()
     for c_id, p_data in data["partners"].items():
@@ -359,13 +360,50 @@ def get_connector_data(skel_id: str, cfg: Dict, r_nodes: List=None) -> Dict:
                     r_connectors.add(c_id)
                     continue
                 else:
-                    connector_ids.add(c_id)
                     connector_data.setdefault(c_id, []).append(link)
-    print(f"connectors: {len(connector_ids)}, r connectors = {len(r_connectors)}")
-    return connector_data
 
-def query_connector_id(skel_id: str, cx_id: str, cfg: Dict):
+    print(f"connectors: {len(connector_ids)}, excluded connectors = {len(r_connectors)}")
+    return connector_data, list(r_connectors)
+
+def out_cx_ids_in_skel(skel_id: str, cfg: Dict, r_nodes: List=None) -> Tuple:
     """
+    List of all outgoing connectors for a skeleton
+
+    :param token:
+    :param p_id:
+    :param skel_id:
+    :param r_str: Optional tag used to filter out links that are not in between the skeleton's root_node and the
+    first node tagged with 'r_str'
+    :return connector_data: Dict, with entries for each of its presynaptic connector_ids: [link_data]
+    """
+    token, p_id, project_url = project_access(cfg)
+    op_path = "/connectors/"
+    post_data = {"skeleton_ids": skel_id,
+                 "relation_type": "presynaptic_to", # doesn't seem to do anything (links w relation=15 still present)
+                 "with_tags": True,
+                 "with_partners": True}
+
+    res_code, data = do_post(token, project_url, p_id, op_path, post_data)
+    # data['partners'] is how you get the cx_id: [links] dictionary
+
+    cx_ids = set()
+    cx_ids_excluded = set()
+    for this_cx, p_data in data["partners"].items():
+        for link in p_data:
+            if link[3] != 16:
+                continue
+            else:
+                if r_nodes is not None and str(link[1]) in r_nodes:
+                    cx_ids_excluded.add(this_cx)
+                    continue
+                else:
+                    cx_ids.add(this_cx)
+
+    print(f"connectors: {len(connector_ids)}, excluded connectors = {len(r_connectors)}")
+    return list(cx_ids), list(cx_ids_excluded)
+
+def cx_data(skel_id: str, cx_id: str, cfg: Dict):
+    """ CURRENTLY NOT USED
     Query single connector ID of a skeleton.
 
     :param token:
@@ -404,13 +442,13 @@ def query_connector_id(skel_id: str, cx_id: str, cfg: Dict):
     '''
     token, p_id, project_url = project_access(cfg)
     op_path = f"/connectors/{cx_id}/"
-    res_code, cx_data = do_get(token, project_url, p_id, op_path)
+    res_code, data = do_get(token, project_url, p_id, op_path)
 
-    assert(str(cx_data["connector_id"]) == cx_id)
+    assert(str(data["connector_id"]) == cx_id)
 
     link_data = []
     pre_to_check = []  # to return list of skel_ids
-    for l in cx_data["partners"]:
+    for l in data["partners"]:
         assert(type(l) is dict)
         if l['relation_id'] == 16:
             # things that are the same for this connector
@@ -419,7 +457,7 @@ def query_connector_id(skel_id: str, cx_id: str, cfg: Dict):
                               'post_skel': str(l['skeleton_id']),
                               'post_node': str(l['partner_id']),  # need to confirm is this is treenode
                               'cx_id': cx_id,
-                              'cx_x': cx_data['x'], 'cx_y': cx_data['y'], 'cx_z': cx_data['z']})
+                              'cx_x': data['x'], 'cx_y': data['y'], 'cx_z': data['z']})
         elif l['relation_id'] == 15 and str(l['skeleton_id']) != skel_id:
             pre_to_check.append(str(l['skeleton_id']))
         elif l['relation_id'] == 15 and str(l['skeleton_id']) == skel_id:
@@ -428,3 +466,19 @@ def query_connector_id(skel_id: str, cx_id: str, cfg: Dict):
             raise Exception(f"Found a link with an unknown relation ID in connector: {cx_id}")
 
     return link_data, pre_to_check
+
+### MOVE TO DATA ANALYSIS TOOLS
+def n_syn_between(skel_data: Dict, pre_id: str, post_id: str):
+
+
+    pre_cx_data = skel_data[pre_id]['out_cx']
+
+    if len(pre_cx_data) < 1:  # no outgoing connectors
+        return count
+    else:
+        # Loop across connectors
+        for cx_id, links in skel_data[pre_id]['out_cx'].items():
+        # Loop across the links in each connector
+            for l in links:
+
+
