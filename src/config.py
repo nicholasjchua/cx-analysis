@@ -33,6 +33,8 @@ class Config(_Config):
         return self.cm_url, self.cm_token, self.p_id
 
 
+
+
 def parse_cfg_file(path: str="") -> Config:
     """
     parse_config_file
@@ -105,7 +107,6 @@ def parse_cfg_file(path: str="") -> Config:
 
     if cfg['restrict_skeletons']['restrict_tags'] == []:
         restrict = False
-
     else:
         restrict = cfg['restrict_skeletons']
 

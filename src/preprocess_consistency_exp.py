@@ -7,8 +7,6 @@ def main():
     fp = handle_args().cfg_path
     cfg = src.config.parse_cfg_file(fp)
 
-
-
     C = Connectome(cfg)
 
 

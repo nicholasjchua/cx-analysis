@@ -1,22 +1,24 @@
 from src.catmaid_queries import *
 from src.config import Config
+from src.node_ops import nodes_betwixt
 
 
 class Skeleton:
 
     def __init__(self, skel_id: str, name: str, cfg: Config, restrict=False):
-        # Unique
-        self.skel_id: str = skel_id #kwargs.get(kwargs['skel_id'])
+
+        self.skel_id: str = skel_id
         self.name: str = name
         self.cfg: Config = cfg
-        # Categorical
         self.cartridge: str = name[2:4]  # which ommatidia this is from, from neuron_name, not 'ommatidia_XY' annotation
         self.subtype: str = self.which_subtype()  # check cfg to decide if categories are excl
-        # nodes and connectors to be included or excluded from the analysis
+        # TODO see if there's diff API call to use (more data)
+        self.skel_nodes: List = skel_compact_detail(skel_id, cfg)
         if restrict:
-            self.node_list, self.r_node_list = nodes_between_tags(skel_id, cfg, invert=True, both=True)
-            self.out_cx, self.r_cx = cx_in_skel(skel_id, cfg, r_nodes=self.r_node_list)
-
+            self.r_nodes = nodes_betwixt(skel_id, cfg, cfg.restrict['restrict_tags'], invert=True)
+        else:
+            self.r_nodes = []
+        self.out_cx, self.r_cx = cx_in_skel(skel_id, cfg, r_nodes=self.r_nodes)
 
     def which_subtype(self, allow_nulltype: bool=False) -> str:
 

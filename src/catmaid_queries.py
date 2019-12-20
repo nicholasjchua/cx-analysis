@@ -157,158 +157,70 @@ def get_root_id(skel_id: str, cfg: Config) -> str:
         return str(node_id)
 
 
-def fetch_node_data(node_id: str, cfg) -> List:
+def fetch_node_data(node_id: str, cfg: Config) -> List:
     """
-    Get data associated with a node ID (TODO: what does this look like again?)
+    Get data associated with a node ID
     :param node_id: str
     :param cfg:
     :return: List, of data corresponding to the node
     """
-    token, p_id, project_url = project_access(cfg)
     op_path = f"/treenodes/{node_id}/compact-detail"
-    res_code, node_data = do_get(token, project_url, p_id, op_path)
-
+    res_code, node_data = do_get(op_path, cfg)
+    # TODO what does this look like again?
     if type(node_data) is list:
         return node_data
     else:
         raise Exception(f"Could not find node with ID: {node_id}")
 
-def fetch_node_coords(token: str, p_id: int, node_id: str) -> Tuple:
-    """
-    Get the x, y, z coordinates of a node using fetch_node_data,
-    TODO: check if nm or voxels
-    :param node_id:
-    :return x, y, z
-    """
-    x, y, z = fetch_node_data(token, p_id, node_id)[2: 5]
-    return x, y, z
 
 
-def first_node_with_tag(skel_id: str, root_id: str, tag_regex: str, cfg: Dict) -> str:
+
+def node_with_tag(skel_id: str, root_id: str, tag_regex: str, cfg: Config, first: bool=True) -> Union[str, List]:
     """
     Returns the node_id of the first node in the skeleton tagged with 'tag_regex'
-    TODO: change so that it returns list
+
     Note: the api call returns a list of nodes in ascending distance from root_id, this function returns the one
     nearest to root. The tag could also be a regular expression.
     :param skel_id: Skeleton ID
     :param root_id: ID of root node. Used to sort tagged nodes by distance
+    :param cfg: Config object
     :param tag_regex: Tag you want to query
-    :return: node_id: str node ID of the tagged treenode
+    :return: node_id: str node ID of the tagged treenode. If first=False, returns a list of [nodeID,nodeData] in
+    ascending order of distance from root.
     """
-    token, p_id, project_url = project_access(cfg)
+    # TODO Check the full output of this API call
     op_path = f"/skeletons/{skel_id}/find-labels"
     post_data = {"treenode_id": int(root_id),
                  "label_regex": str(tag_regex)}
-    res_code, nodes = do_post(token, project_url, p_id, op_path, post_data)
+    res_code, data = do_post(op_path, post_data, cfg)
 
-    if len(nodes) == 0:
+    if len(data) == 0:
         raise Exception(f"Skeleton {skel_id} does not have a node tagged with {tag_regex}")
+    elif first:
+        return str(data[0][0])
     else:
-        node_id = str(nodes[0][0])
-    # return nodes if you want all of them
-    return node_id
-
-
-# TREENODE OPERATIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def dist_two_nodes(token: str, p_id: int, node1: str, node2: str) -> float:
-    coord1 = np.array(fetch_node_coords(token, p_id, node1), dtype=float)
-    coord2 = np.array(fetch_node_coords(token, p_id, node2), dtype=float)
-
-    dist = distance.euclidean(coord1, coord2)
-    return dist
+        print("list of {len(data)} nodes and their node_data")
+        return data
 
 
 
-def nodes_between_tags(skel_id: str, cfg: Dict, restrict_tag: Union[str, Tuple]= '',
-                       invert: bool=True, both: bool=False) -> Union[List[str], Tuple]:
-    """
-    Get a list of node_ids for nodes between two specified tags on a skeleton.
-    TODO: allow this to take node_ids for start and end instead
-    :param skel_id: Skeleton ID
-    :param restrict_tag: str or tuple of two strings. Giving just one will define the segment as root -> tag
-    :param invert: If true, returns the nodes OUTSIDE the tagged segment.
-    :return:
-    """
-    root_id = get_root_id(cfg)
-    if type(restrict_tag) is str:
-        start = root_id
-        end = first_node_with_tag(skel_id, root_id, restrict_tag, cfg)
-    else:
-        start = first_node_with_tag(skel_id, root_id, restrict_tag, cfg)
-        end = first_node_with_tag(skel_id, root_id, restrict_tag, cfg)
-    dist = check_dist(start, end, cfg)
-    print(f'Nodes defining skeletal segment for {skel_id} are {dist} nm apart (as the crow flies)')
-    node_list = skel_compact_detail(skel_id, cfg)
-    nodes_within = traverse_nodes(node_list, int(start), int(end))
-    # pprint(f"Total nodes: {len(node_list)}, Nodes between tags: {len(nodes_within)}")
-
-    if invert:
-        restricted = [str(n[0]) for n in node_list if n[0] not in nodes_within]
-        if both:
-            return nodes_within, restricted
-        else:
-            print(f"length total: {len(node_list)} length restricted: {len(restricted)}")
-            return restricted
-    else:
-        return nodes_within
-
-def check_dist(root_id: str, end_id: str, cfg: Dict):
-    """
-    If root is very close to the end tag, there was probably a mistake in CATMAID
-    :param root_id: str, node_id of root
-    :param end_id:
-    :param cfg:
-    :return dist: boolean, if sufficiently far, returns the distance in nm
-    """
-    dist = dist_two_nodes(root_id, end_id, cfg)
-    print(dist)
-    if np.abs(dist) < 1000.0:
-        raise Exception('Node with restrict tag is suspiciously close to root node')
-    else:
-        return dist
-
-def traverse_nodes(node_list: List, start: int=None, end: int=None):
-    """
-    Recursive walk through node_list from 'start' node, collecting node IDs in a list.
-    Function will split when a branch is hit (i.e. node has two children)
-    Ends when when an arbor terminates of if 'end' node is found
-    :param node_list: List, of nodes to traverse
-    :param start:
-    :param end:
-    :return:
-    """
-    current = start
-    node_ids = []
-    if current != end:
-        node_ids.append(current)
-        children = [n[0] for n in node_list if n[1] == current]
-        if children == []:  # end of branch
-            return node_ids
-        else:
-            for c in children:
-                deeper_nodes = traverse_nodes(node_list, start=c, end=end)
-                node_ids.extend(deeper_nodes)
-
-    return node_ids
 
 
 # SKELETON QUERIES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def skel_compact_detail(skel_id: str, cfg: Dict) -> List:
+def skel_compact_detail(skel_id: str, cfg: Config) -> List:
     """
     Returns a list of treenodes for a given skeleton
-    The 'post' version of this API call doesn't seem to work, so I don't know how to have 'with_connectors' etc. =True
+    The 'post' version of this API call doesn't seem to work, so I don't know how to have 'with_connectors' etc.
     nodes is a list of lists: [[nodes], [connectors], {nodeID: [tags]}], but currently the latter two are empty
-    Used by nodes_between_tags
-    :param token: Catmaid API token
-    :param p_id: Project ID
+
     :param skel_id: Skeleton ID
+    :param cfg: Config object
     :return: nodes[0], the first element which contains the node data
     """
-    token, p_id, project_url = project_access(cfg)
+
     op_path = f"/skeletons/{skel_id}/compact-detail"
-    #post_data = {"skeleton_id": [skel_id],
-                 #"with_connectors": True}
-    res_code, nodes = do_get(token, project_url, p_id, op_path)
+
+    res_code, nodes = do_get(op_path, cfg)
     return nodes[0]
 
 
@@ -324,14 +236,14 @@ def cx_in_skel(skel_id: str, cfg: Dict, r_nodes: List=None) -> Tuple:
     first node tagged with 'r_str'
     :return connector_data: Dict, with entries for each of its presynaptic connector_ids: [link_data]
     """
-    token, p_id, project_url = project_access(cfg)
+
     op_path = "/connectors/"
     post_data = {"skeleton_ids": skel_id,
                  "relation_type": "presynaptic_to", # doesn't seem to do anything (links w relation=15 still present)
                  "with_tags": True,
                  "with_partners": True}
 
-    res_code, data = do_post(token, project_url, p_id, op_path, post_data)
+    res_code, data = do_post(op_path, post_data, cfg)
     # data['partners'] is how you get the cx_id: [links] dictionary
 
     r_connectors = set()
