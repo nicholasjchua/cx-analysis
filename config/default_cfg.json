@@ -1,18 +1,42 @@
 {
-  "project_url": "",
-  "user_token": "",
-  "project_id": 1,
-  "annot": "191015_lamina",
-  "subtypes": ["LMC_1", "LMC_2", "LMC_3", "LMC_4", "LMC_N", "R2R5", "R1R4", "R3R6", "R7", "R7p", "R8", "centri"],
-  "expected_n": [1, 1, 1, -1, 1, 2, 2, 2, 1, 1, 1, 1],
-  "in_medulla": ["LMC_1", "LMC_2", "LMC_3", "LMC_4", "LMC_N", "R7", "R7p", "R8"],
-  "end_tag": "lamina_end",
-  "regions":
-  {
-    "DRA": ["A4", "A5", "B5", "B6", "C5", "C6", "D6", "D7", "E6", "E7"]
-  },
+  "url": "",
+  "token": "",
+  "p_id": "",
+  "annot": "",
   "syn_tresh": 5,
-  "save_data": true,
-  "log": false,
-  "save_dir": ""
+  "save": true,
+  "log": true,
+  "dir": "",
+  "subtypes": [
+      "LMC_1",
+      "LMC_2",
+      "LMC_3",
+      "LMC_4",
+      "LMC_N",
+      "R2R5",
+      "R1R4",
+      "R3R6",
+      "R7",
+      "R7p",
+      "R8",
+      "centri"
+    ],
+  "st_n": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2,
+    1,
+    1,
+    1,
+    1
+  ],
+  "restrict_skeletons": {
+    "restrict_tags": "",
+    "restrict_for": ""
+  }
 }

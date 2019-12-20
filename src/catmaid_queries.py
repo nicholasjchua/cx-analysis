@@ -5,6 +5,7 @@ from scipy.spatial import distance
 import networkx as nx
 import itertools
 from pprint import pprint
+from src.Config import Config
 from glob import glob
 import pandas as pd
 #from cartridge_metadata import lamina_subtypes
@@ -13,18 +14,15 @@ import pandas as pd
 ####################
 # REQUEST WRAPPERS #
 ####################
-def do_get(token: str, p_url: str, p_id: int, apipath: str) -> Tuple:
+def do_get(apipath: str, cfg: Config) -> Tuple:
     """
     Wraps get requests. Performs specific action based on the operation specificed by apipath
-    :param token: User's Catmaid access token
-    :param p_url: URL of your Catmaid instance
-    :param p_id: Project ID
     :param apipath: API path for a specific get operation, e.g. '/annotations/'
     :return response: True if the request was successful
     :return results: A json of the results if sucessful, a string if not.
     """
+    p_url, token, p_id = cfg.cm_access()
     path = p_url + "/" + str(p_id) + apipath
-
     result = requests.get(path, headers={'X-Authorization': 'Token ' + token})
     try:
         jresult = result.json()
@@ -45,20 +43,16 @@ def do_get(token: str, p_url: str, p_id: int, apipath: str) -> Tuple:
         return False, f"Something went wrong with {apipath}, return code was {result.status_code}"
 
 
-def do_post(token: str, p_url: str, p_id: int, apipath: str, postdata: Dict) -> Tuple:
+def do_post(apipath: str, postdata: Dict, cfg: Config) -> Tuple:
     """
     Wraps post requests. Performs specific action based on the operation specificed by apipath
     and the fields in postdata
-    :param token: User's Catmaid access token
-    :param p_url: URL of your Catmaid instance
-    :param p_id: Project ID
-    :param apipath: API path for a specific get operation, e.g.
-    :param postdata: A Dict with K:Vs specified by particular post request
+
     :return response: True if the request was successful
     :return results: A json of the results if successful, a string if not.
     """
+    p_url, token, p_id = cfg.cm_access()
     path = p_url + "/" + str(p_id) + apipath
-
     result = requests.post(path, data=postdata, headers={'X-Authorization': 'Token ' + token})
     try:
         jresult = result.json()
@@ -79,34 +73,23 @@ def do_post(token: str, p_url: str, p_id: int, apipath: str, postdata: Dict) -> 
         return False, f"Something went wrong with {apipath}, return code was {result.status_code}"
 
 
-def project_access(cfg: Dict) -> Tuple:
-
-    return cfg['user_token'], cfg['project_id'], cfg['project_url']
-
-
 # ANNOTATION QUERIES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def skels_in_annot(annot: Union[int, str], cfg: Dict) -> Tuple[List[str], List[str]]:
+def skels_in_annot(annot: Union[int, str], cfg: Config) -> Tuple[List[str], List[str]]:
     """
     Given an annotation ID, produce lists of skeleton IDs and neuron names
-
-    Calls annot_to_annot_id() if you give it string annotations
-    :param token: Catmaid API token
-    :param p_id: Project
-    :param annot: Annotation ID or name
-    :return: skeleton_ids: List of skeleton_ids
-    :return: neuron_names: List of neuron_names
+    :param: annot: annotation to query neurons
+    :param:cfg: Config, object stores analysis configs
+    :return: neuron_names: Lists of (skel_id, neuron_name)
     """
-    token, p_id, project_url = project_access(cfg)
-    op_path = "/annotations/query-targets"
-
     if type(annot) is str:
-        annot_id = get_annot_id(token, p_id, annot)
+        annot_id = annot_to_id(annot, cfg)
     else:
         annot_id = annot
 
+    op_path = "/annotations/query-targets"
     post_data = {"annotated_with": annot_id,
                  "types": ["skeleton", "neuron"]}
-    res_code, data = do_post(token, project_url, p_id, op_path, post_data)
+    res_code, data = do_post(op_path, post_data, cfg)
 
     if len(data["entities"]) == 0:
         raise Exception(f"Entities annotated with annotation ID: {annot_id} not found")
@@ -118,17 +101,17 @@ def skels_in_annot(annot: Union[int, str], cfg: Dict) -> Tuple[List[str], List[s
 
     return skeleton_ids, neuron_names
 
-def annot_in_skel(skel_id: str, cfg: Dict) -> List:
+
+def annot_in_skel(skel_id: str, cfg: Config) -> List[str]:
     """
     Fetch list of annotations associated with the skeleton ID, raises exception if no annotations found
     :param cfg: Dict, of analysis options
     :param skel_ids: str,the numerical skeleton ID
     :return: annot_list, List, of annotations
     """
-    token, p_id, project_url = project_access(cfg)
     op_path = "/annotations/forskeletons"
     post_data = {"skeleton_ids": skel_id}
-    res_code, data = do_post(token, project_url, p_id, op_path, post_data)
+    res_code, data = do_post(op_path, post_data, cfg)
 
     annot_list = list(data["annotations"].values())
     if annot_list is []:
@@ -136,7 +119,7 @@ def annot_in_skel(skel_id: str, cfg: Dict) -> List:
     else:
         return annot_list
 
-def get_annot_id(annot: str, cfg: Dict) -> int:
+def annot_to_id(annot: str, cfg: Config) -> int:
     """
     Search project for an annotation, get its numerical ID
     :param token: Catmaid API token
@@ -144,10 +127,9 @@ def get_annot_id(annot: str, cfg: Dict) -> int:
     :param annot: str, Annotation
     :returns annot_id: int
     """
-    token, p_id, project_url = project_access(cfg)
-    op_path = "/annotations/"
-    res_code, data = do_get(token, project_url, p_id, op_path)
 
+    op_path = "/annotations/"
+    res_code, data = do_get(op_path, cfg)
     data = data['annotations']
     annot_id = None
     for this_annot in data:
@@ -160,15 +142,14 @@ def get_annot_id(annot: str, cfg: Dict) -> int:
 
 
 # TREENODE QUERIES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def get_root_id(skel_id: str, cfg: Dict) -> str:
+def get_root_id(skel_id: str, cfg: Config) -> str:
     """
     Get the node ID corresponding to the root of a skeleton_id
     :param skel_id: str
     :return node_id: str
     """
-    token, p_id, project_url = project_access(cfg)
     op_path = f"/skeletons/{skel_id}/root"
-    res_code, root = do_get(token, project_url, p_id, op_path)
+    res_code, root = do_get(op_path, cfg)
     node_id = root.get('root_id', None)
     if node_id is None:
         raise Exception(f"Root node not found for skeleton: {skel_id}")

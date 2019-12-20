@@ -44,6 +44,6 @@ def div0(a: np.array, b: np.array, decimals: int=None) -> np.array:
             result = np.around(result, decimals=decimals)
     return result
 
-def datestamp() -> str:
+def YYMMDDnow() -> str:
 
     return datetime.today().strftime("%y%m%d")
