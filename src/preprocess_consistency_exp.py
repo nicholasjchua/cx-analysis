@@ -1,13 +1,17 @@
 import argparse
 import os.path
-from src.Config import Config
-from src.Connectome import *
+import src.config
+from src.connectome import *
 
 def main():
     fp = handle_args().cfg_path
-    cfg = Config(fp)
+    cfg = src.config.parse_cfg_file(fp)
+
+
 
     C = Connectome(cfg)
+
+
 
 
 

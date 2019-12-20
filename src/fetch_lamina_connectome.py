@@ -3,7 +3,7 @@ import os, sys
 import glob
 from typing import Dict, List, Tuple, Union
 import itertools
-from config.cfg_parser import parse_config_file
+from src.config import parse_cfg_file
 from src.catmaid_queries import *
 
 from numpy.matlib import repmat
@@ -16,7 +16,7 @@ Fetch and organise data from CATMAID
 
 def main():
 
-    cfg = parse_config_file()  # see config/default_cfg.json for defaults
+    cfg = parse_cfg_file()  # see config/default_cfg.json for defaults
     ### MAIN FETCH ###
 
     skel_data, excluded_terminals = fetch_connectome(cfg)

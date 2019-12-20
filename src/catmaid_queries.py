@@ -5,7 +5,7 @@ from scipy.spatial import distance
 import networkx as nx
 import itertools
 from pprint import pprint
-from src.Config import Config
+from src.config import Config
 from glob import glob
 import pandas as pd
 #from cartridge_metadata import lamina_subtypes

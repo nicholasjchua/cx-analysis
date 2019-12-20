@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 import json
 import os
 import os.path
@@ -5,43 +6,34 @@ import logging
 from glob import glob
 from typing import List, Tuple, Dict
 from typing import Dict
+from collections import namedtuple
 
-class Config:
+_Config = namedtuple(
+    'Config',
+    [
+        'source',
+        'cm_url',
+        'cm_token',
+        'p_id',
+        'annot',
+        'subtypes',
+        'expected_n',
+        'min_cx',
+        'save',
+        'log',
+        'out_dir',
+        'restrict',
+    ]
+)
 
-    def __init__(self, path: str=""):
 
-        self.cm_url, \
-        self.cm_token, \
-        self.p_id, \
-        self.annot, \
-        self.subtypes, \
-        self.expected_n, \
-        self.min_cx, \
-        self.save, \
-        self.log, \
-        self.out_dir, \
-        self.restrict \
-            = parse_cfg_file(path)
-
-    def __str__(self) -> str:
-        s = f"cm_url: {self.cm_url}\n" \
-            f"annot: {self.annot}\n" \
-            f"min_cx: {self.min_cx}\n" \
-            f"save: {self.save}\n" \
-            f"log: {self.log}\n" \
-            f"out_dir: {self.log}\n" \
-            f"subtypes: {self.subtypes}\n" \
-            f"expected_n: {self.expected_n}\n" \
-            f"restrict: {self.restrict}\n"
-
-        return s
+class Config(_Config):
 
     def cm_access(self) -> Tuple:
-
         return self.cm_url, self.cm_token, self.p_id
 
 
-def parse_cfg_file(path: str="") -> Tuple:
+def parse_cfg_file(path: str="") -> Config:
     """
     parse_config_file
     :param path: str (optional), path to a json containing analysis parameters
@@ -117,5 +109,18 @@ def parse_cfg_file(path: str="") -> Tuple:
     else:
         restrict = cfg['restrict_skeletons']
 
-    return cm_url, cm_token, p_id, annot, subtypes, expected_n, min_cx, save, log, out_dir, restrict
+    return Config(
+        source=fp,
+        cm_url=cm_url,
+        cm_token=cm_token,
+        p_id=p_id,
+        annot=annot,
+        subtypes=subtypes,
+        expected_n=expected_n,
+        min_cx=min_cx,
+        save=save,
+        log=log,
+        out_dir=out_dir,
+        restrict=restrict
+    )
 
