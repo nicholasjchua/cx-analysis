@@ -248,57 +248,27 @@ def cx_in_skel(skel_id: str, cfg: Dict, r_nodes: List=None) -> Tuple:
 
     r_connectors = set()
     connector_data = dict()
-    for c_id, p_data in data["partners"].items():
+    link_data = []
+    for cx_id, p_data in data["partners"].items():
         for link in p_data:
             if link[3] != 16:
                 continue
             else:
                 if r_nodes is not None and str(link[1]) in r_nodes:
-                    r_connectors.add(c_id)
+                    r_connectors.add(cx_id)
                     continue
                 else:
-                    connector_data.setdefault(c_id, []).append(link)
+                    link_data.append({'link_id': str(link[0]),
+                                      'pre_skel': skel_id,
+                                      'post_skel': str(link[2]),
+                                      'post_node': str(link[1]),  # need to confirm is this is treenode
+                                      'cx_id': cx_id})
+                    connector_data.setdefault(cx_id, []).append(link)
 
-    print(f"connectors: {len(connector_ids)}, excluded connectors = {len(r_connectors)}")
-    return connector_data, list(r_connectors)
+    #print(f"connectors: {len(connector_data.keys())}, excluded connectors = {len(r_connectors)}")
+    return connector_data, link_data, list(r_connectors)
 
-def out_cx_ids_in_skel(skel_id: str, cfg: Dict, r_nodes: List=None) -> Tuple:
-    """
-    List of all outgoing connectors for a skeleton
 
-    :param token:
-    :param p_id:
-    :param skel_id:
-    :param r_str: Optional tag used to filter out links that are not in between the skeleton's root_node and the
-    first node tagged with 'r_str'
-    :return connector_data: Dict, with entries for each of its presynaptic connector_ids: [link_data]
-    """
-    token, p_id, project_url = project_access(cfg)
-    op_path = "/connectors/"
-    post_data = {"skeleton_ids": skel_id,
-                 "relation_type": "presynaptic_to", # doesn't seem to do anything (links w relation=15 still present)
-                 "with_tags": True,
-                 "with_partners": True}
-
-    res_code, data = do_post(token, project_url, p_id, op_path, post_data)
-    # data['partners'] is how you get the cx_id: [links] dictionary
-    pprint(data)
-
-    cx_ids = set()
-    cx_ids_excluded = set()
-    for this_cx, p_data in data["partners"].items():
-        for link in p_data:
-            if link[3] != 16:
-                continue
-            else:
-                if r_nodes is not None and str(link[1]) in r_nodes:
-                    cx_ids_excluded.add(this_cx)
-                    continue
-                else:
-                    cx_ids.add(this_cx)
-
-    print(f"connectors: {len(connector_ids)}, excluded connectors = {len(r_connectors)}")
-    return list(cx_ids), list(cx_ids_excluded)
 
 def cx_data(skel_id: str, cx_id: str, cfg: Dict):
     """ CURRENTLY NOT USED

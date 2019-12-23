@@ -18,6 +18,8 @@ _Config = namedtuple(
         'annot',
         'subtypes',
         'expected_n',
+        'groupby',
+        'annotator_initials',
         'min_cx',
         'save',
         'log',
@@ -105,6 +107,19 @@ def parse_cfg_file(path: str="") -> Config:
     else:
         expected_n = cfg['expected_n']
 
+    if cfg['groupby'] == 'om':
+        groupby = 'om'
+        annotator_initials = []  # don't need this if grouping by ommatidia
+    elif cfg['groupby'] == 'annotator':
+        if len(cfg['annotator_initials']) > 1:
+            groupby = 'annotator'
+            annotator_initials = cfg['annotator_initials']  # for validation experiment
+        else:
+            raise Exception("Annotator initials missing from config file (required when groupby=annotator)")
+    else:
+        raise Exception("Invalid 'groupby' argument. Needs to be 'annotator' or 'om'. Former also requires"
+                        "a list of annotator initials in the config file")
+
     if cfg['restrict_skeletons']['restrict_tags'] == []:
         restrict = False
     else:
@@ -118,6 +133,8 @@ def parse_cfg_file(path: str="") -> Config:
         annot=annot,
         subtypes=subtypes,
         expected_n=expected_n,
+        groupby=groupby,
+        annotator_initials=annotator_initials,
         min_cx=min_cx,
         save=save,
         log=log,
