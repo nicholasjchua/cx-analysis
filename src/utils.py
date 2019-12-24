@@ -2,19 +2,15 @@ import numpy as np
 import os.path
 import pickle
 from datetime import datetime
+import re
 from src.connectome import Connectome
 from typing import Dict, List, Tuple, Union
 
-# Attribute assignment ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def save_preprocessed_connectome(c: Connectome) -> None:
 
-    if os.path.exists(c.cfg.out_dir):
-        file_path = os.path.join(c.cfg.out_dir, f"{YYMMDDnow()}_preprocessed.pickle")
-        with open(file_path, 'wb') as f:
-            pickle.dump(c, f)
-        print(f"Preprocessed connectome saved at: {file_path}")
-    else:
-        raise Exception(f"Directory: {c.cfg.out_dir} not found")
+# Save data and results ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
 
 def div0(a: np.array, b: np.array, decimals: int=None) -> np.array:
     """
@@ -31,6 +27,30 @@ def div0(a: np.array, b: np.array, decimals: int=None) -> np.array:
             result = np.around(result, decimals=decimals)
     return result
 
-def YYMMDDnow() -> str:
+def yymmdd_today() -> str:
 
     return datetime.today().strftime("%y%m%d")
+
+def handle_dupe_filenames(fn: str):
+    """
+    adds 'dash-[int]' before the last underscore of a filename that exists already, increasing till it
+    gets a name that doesn't exist
+    """
+    if os.path.isfile(fn):
+        assert('_' in str(fn))
+        head = fn.split('_')[-2]
+        tail = fn.split('_')[-1]
+        if re.search("-[0-9]+$", head) is not None:
+            n = int(head.split('-')[1]) + 1
+            head = head.split('-')[0]  # get rid of -n part
+        else:
+            n = 0
+        new_fp = head + f"-{n}" + tail
+        fn = handle_dupe_filenames(new_fp)
+    else:
+        return fn
+    return fn
+
+
+
+

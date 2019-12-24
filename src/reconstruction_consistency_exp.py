@@ -1,6 +1,6 @@
 import argparse
-from src.utils import save_preprocessed_connectome
 import os.path
+
 import src.config
 from src.connectome import *
 
@@ -9,7 +9,9 @@ def main():
     cfg = src.config.parse_cfg_file(fp)
 
     C = Connectome(cfg)
-    save_preprocessed_connectome(C)
+
+    if cfg.save:
+        C.save_preprocessed_connectome()
 
 def handle_args():
 

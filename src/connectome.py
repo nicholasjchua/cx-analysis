@@ -1,4 +1,3 @@
-from typing import List, Dict, Iterable
 from src.catmaid_queries import *
 from src.utils import *
 from src.skeleton import Skeleton
@@ -13,7 +12,62 @@ class Connectome:
             self.ids_to_names, \
             self.grouping = self.__fetch_skeletons()
         self.adj_mat = self.__assemble_adj_mat()
-        #self.connectivity_data = self.interpret_connectivity()
+
+    def print_adj_mat(self):
+        # TODO get the stuff that formats and prints adjacency matrices from 'connectivity_analysis'
+        A = np.ones((self.adj_mat.shape[0], len(self.cfg.subtypes), len(self.cfg.subtypes)), dtype=int)
+
+    def save_preprocessed_connectome(self, path: str = "", overwrite: bool=False) -> None:
+        """
+        save Connectome instance as .pickle file
+        """
+        if path == "":
+            path = self.cfg.out_dir
+        fn = handle_dupe_filenames(f"{yymmdd_today()}_preprocessed.pickle")
+        file_path = os.path.join(path, fn)
+
+        if os.path.isfile(file_path) and not overwrite:
+            print(f"File: {file_path} already exists")
+            file_path = file_path.split('_')[-2] + file_path.split('_')[-1]
+
+        with open(file_path, 'wb') as f:
+            print(f"Preprocessed connectome saved at: {file_path}")
+            pickle.dump(self, f)
+
+    def query_ids_by(self, by: str, key: str):
+        """
+        'by' can be 'group' or 'subtype'
+        """
+        if by == 'group' or by.lower() == 'g':
+            return [skel_id for skel_id, data in self.skel_data.items() if data.group == key]
+
+        elif by == 'subtype' or by.lower() == 's':
+            return [skel_id for skel_id, data in self.skel_data.items() if data.subtype == key]
+        else:
+            raise Exception("Argument for 'by' needs to be either 'group' or 'subtype'")
+
+    # Private Methods ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def __fetch_skeletons(self) -> Tuple:
+        """
+        Parse skeletons associated with annotation defined in config file
+        :returns skel_data: {id: skeleton_data}
+        :returns neurons_ids: [(neuron_name, skel_id)]
+        """
+        # Catmaid Access
+
+        skel_ids, neuron_names = skels_in_annot(self.cfg.annot, self.cfg)
+        ids_to_names = {s: n for s, n in zip(skel_ids, neuron_names)}
+        grouping, ids_to_groups = self.__group_neurons(ids_to_names)
+        print(f"Found {len(skel_ids)} skeletons annotated with {self.cfg.annot}")
+
+        skel_data = dict.fromkeys(skel_ids)
+
+        for id, n in ids_to_names.items():
+            g = ids_to_groups[id]
+            skel_data[id] = Skeleton(id, n, g, self.cfg)
+            #print(skel_data[id].name)
+            #print(skel_data[id].group)
+        return skel_data, ids_to_names, grouping
 
     def __group_neurons(self, ids_to_names: Dict):
 
@@ -39,53 +93,16 @@ class Connectome:
 
         return groups, ids_to_groups
 
-    def ids_by(self, by: str, key: str):
-
-        if by == 'group' or by.lower() == 'g':
-            #print(f"QUery for {key} returns {[id for id, data in self.skel_data.items() if data.group == key]}")
-            return [id for id, data in self.skel_data.items() if data.group == key]
-
-        elif by == 'subtype' or by.lower() == 's':
-            #print(f"QUery for {key} returns {[id for id, data in self.skel_data.items() if data.subtype == key]}")
-            return [id for id, data in self.skel_data.items() if data.subtype == key]
-        else:
-            raise Exception("Argument for 'by' needs to be either 'group' or 'subtype'")
-
-
-
-    def __fetch_skeletons(self) -> Tuple:
-        """
-        Parse skeletons associated with annotation defined in config file
-        :returns skel_data: {id: skeleton_data}
-        :returns neurons_ids: [(neuron_name, skel_id)]
-        """
-        # Catmaid Access
-
-        skel_ids, neuron_names = skels_in_annot(self.cfg.annot, self.cfg)
-        ids_to_names = {s: n for s, n in zip(skel_ids, neuron_names)}
-        grouping, ids_to_groups = self.__group_neurons(ids_to_names)
-        print(f"Found {len(skel_ids)} skeletons annotated with {self.cfg.annot}")
-
-        skel_data = dict.fromkeys(skel_ids)
-
-        for id, n in ids_to_names.items():
-            g = ids_to_groups[id]
-            skel_data[id] = Skeleton(id, n, g, self.cfg)
-            #print(skel_data[id].name)
-            #print(skel_data[id].group)
-        return skel_data, ids_to_names, grouping
-
-
     def __get_id_mat(self) -> np.array:
 
         group_list = sorted(self.grouping.keys())
         subtypes = sorted(self.cfg.subtypes)
         ids = []
         for i, g in enumerate(group_list):
-            skels_in_g = self.ids_by('group', g)
+            skels_in_g = self.query_ids_by('group', g)
             tmp = []  # the row for each group
             for ii, s in enumerate(subtypes):
-                skels_in_s_and_g = [skel for skel in skels_in_g if skel in self.ids_by('subtype', s)]
+                skels_in_s_and_g = [skel for skel in skels_in_g if skel in self.query_ids_by('subtype', s)]
                 if len(skels_in_s_and_g) == abs(self.cfg.expected_n[ii]):
                     tmp = [*tmp, *skels_in_s_and_g]
                 elif len(skels_in_s_and_g) == 0 and self.cfg.expected_n[ii] == -1:
@@ -126,7 +143,6 @@ class Connectome:
         print(adj_mat)
         return adj_mat
 
-
     def __count_connections(self, pre_id: str, post_id: str) -> int:
 
         count = 0
@@ -134,10 +150,6 @@ class Connectome:
             if l['post_skel'] == post_id:
                 count += 1
         return count
-
-    def print_adj_mat(self):
-        # TODO get the stuff that formats and prints adjacency matrices from 'connectivity_analysis'
-        A = np.ones((self.adj_mat.shape[0], len(self.cfg.subtypes), len(self.cfg.subtypes)), dtype=int)
 
 
 
