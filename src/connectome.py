@@ -1,7 +1,8 @@
 from src.catmaid_queries import *
 from src.utils import *
 from src.skeleton import Skeleton
-
+from pandas import to_pickle
+print(dir())
 
 class Connectome:
 
@@ -17,22 +18,56 @@ class Connectome:
         # TODO get the stuff that formats and prints adjacency matrices from 'connectivity_analysis'
         A = np.ones((self.adj_mat.shape[0], len(self.cfg.subtypes), len(self.cfg.subtypes)), dtype=int)
 
-    def save_preprocessed_connectome(self, path: str = "", overwrite: bool=False) -> None:
+    def save_connectome(self, path: str = "", overwrite: bool=False) -> None:
         """
         save Connectome instance as .pickle file
         """
         if path == "":
             path = self.cfg.out_dir
-        fn = handle_dupe_filenames(f"{yymmdd_today()}_preprocessed.pickle")
-        file_path = os.path.join(path, fn)
+        pack_pickle(self, path, "preprocessed")
 
-        if os.path.isfile(file_path) and not overwrite:
-            print(f"File: {file_path} already exists")
-            file_path = file_path.split('_')[-2] + file_path.split('_')[-1]
+    def save_linkdf(self, path: str = ""):
 
-        with open(file_path, 'wb') as f:
-            print(f"Preprocessed connectome saved at: {file_path}")
-            pickle.dump(self, f)
+        if path == "":
+            path = self.cfg.out_dir
+        df_rows = []
+        skel_data = self.skel_data
+
+        for pre_id, pre_sk in skel_data.items():
+            assert (type(pre_sk) is Skeleton)
+            out_links = pre_sk.out_links  # list containing a Dict for each synaptic link
+            for l in out_links:
+                post_id = l.get('post_skel')
+                print(post_id)
+                post_sk = self.skel_data.get(post_id)
+
+                if post_sk is None:  # unidentified neurites (aka fragments)
+                    post_name = ''
+                    post_type = 'unknown'
+                    post_om = 'unknown'
+                else:
+                    post_name = post_sk.name
+                    post_type = post_sk.subtype
+                    post_om = post_sk.group
+
+
+                df_rows.append({'pre_neuron': pre_sk.name,
+                                'pre_type': pre_sk.subtype,
+                                'pre_om': pre_sk.group,
+                                'pre_skel': pre_id,
+                                'post_neuron': post_name,
+                                'post_type': post_type,
+                                'post_om': post_om,
+                                'post_skel': post_id,
+                                'link_id': l.get('link_id'),
+                                'cx_id': l.get('cx_id')})
+
+        df = pd.DataFrame(data=df_rows, columns=['link_id', 'cx_id',
+                                                 'pre_neuron', 'pre_om', 'pre_type', 'pre_skel',
+                                                 'post_neuron', 'post_om', 'post_type', 'post_skel'])
+                                                 #'cx_x', 'cx_y', 'cx_z'])
+        pack_pickle(df, path, "linkdf")
+
 
     def query_ids_by(self, by: str, key: str):
         """
@@ -122,7 +157,6 @@ class Connectome:
         subtypes = sorted(self.cfg.subtypes)
 
         adj_mat = np.zeros((len(groups), id_mat.shape[1], id_mat.shape[1]), dtype=int)
-        output_data = dict.fromkeys(self.ids_to_names)
 
         for i, g in enumerate(groups):
             for j, pre_skel in enumerate(id_mat[i]):
@@ -150,6 +184,7 @@ class Connectome:
             if l['post_skel'] == post_id:
                 count += 1
         return count
+
 
 
 

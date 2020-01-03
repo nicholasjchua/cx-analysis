@@ -2,16 +2,24 @@ import argparse
 import os.path
 
 import src.config
-from src.connectome import *
+from src.connectome import Connectome
+from src.utils import load_preprocessed_connectome
 
 def main():
-    fp = handle_args().cfg_path
-    cfg = src.config.parse_cfg_file(fp)
+    analysis_dir = handle_args().cfg_path
+    cfg = src.config.parse_cfg_file(analysis_dir)
 
+
+    '''
     C = Connectome(cfg)
 
     if cfg.save:
-        C.save_preprocessed_connectome()
+        C.save_connectome()
+    '''
+    C = load_preprocessed_connectome(cfg.out_dir)
+    C.save_edgedf(cfg.out_dir)
+
+
 
 def handle_args():
 

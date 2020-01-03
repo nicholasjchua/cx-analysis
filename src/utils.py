@@ -1,15 +1,51 @@
 import numpy as np
 import os.path
 import pickle
+from glob import glob
 from datetime import datetime
 import re
-from src.connectome import Connectome
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List
+import pandas as pd
+
+#from src.connectome import Connectome
+from src.skeleton import Skeleton
+
+# Save / Load ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def unpack_pickle(data_dir: str, f_regex: str):
+
+    fp = glob(os.path.join(os.path.expanduser(data_dir), f_regex))
+    if len(fp) > 1:
+        raise Exception(f"Found multiple files in {data_dir} matching {f_regex}:\n{fp}")
+    elif len(fp) == 0:
+        raise Exception(f"Unable to find file in {data_dir} matching {f_regex}")
+    else:
+        path = fp[0]
+        with open(path, 'rb') as fh:
+            print(f"Pickle loaded from: {path}")
+            data = pickle.load(fh)
+        return data
 
 
-# Save data and results ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def pack_pickle(data, data_dir: str, f_label: str, overwrite: bool=False):
+    fn = f"{yymmdd_today()}_{f_label}.pickle"
+    file_path = os.path.join(os.path.expanduser(data_dir), fn)
+    if os.path.isfile(file_path):
+        raise Exception(f"{file_path} already exists")
+
+    with open(file_path, 'wb') as f:
+        print(f"Preprocessed data written to:\n {file_path}")
+        if type(data) is pd.DataFrame:
+            data.to_pickle(f, compression=None)
+        else:
+            pickle.dump(data, f)
 
 
+
+def load_preprocessed_connectome(data_dir: str):
+
+    # TODO change to pkl
+    C = unpack_pickle(data_dir, '*_preprocessed.pickle')
+    return C
 
 
 def div0(a: np.array, b: np.array, decimals: int=None) -> np.array:
@@ -31,25 +67,7 @@ def yymmdd_today() -> str:
 
     return datetime.today().strftime("%y%m%d")
 
-def handle_dupe_filenames(fn: str):
-    """
-    adds 'dash-[int]' before the last underscore of a filename that exists already, increasing till it
-    gets a name that doesn't exist
-    """
-    if os.path.isfile(fn):
-        assert('_' in str(fn))
-        head = fn.split('_')[-2]
-        tail = fn.split('_')[-1]
-        if re.search("-[0-9]+$", head) is not None:
-            n = int(head.split('-')[1]) + 1
-            head = head.split('-')[0]  # get rid of -n part
-        else:
-            n = 0
-        new_fp = head + f"-{n}" + tail
-        fn = handle_dupe_filenames(new_fp)
-    else:
-        return fn
-    return fn
+
 
 
 
