@@ -118,7 +118,7 @@ class Connectome:
             # neurons should be named 'om[two char id]_[subtype]'
             elif self.cfg.groupby is 'om':
                 g_flag = n[2:4]
-                if n[0:2] is not 'om':
+                if n[0:2] != 'om':
                     raise Exception(f"Could not assign {n} to an ommatidia based on its neuron_name")
             else:
                 raise Exception("Invalid 'groupby' argument. Needs to be 'annotator' or 'om'")

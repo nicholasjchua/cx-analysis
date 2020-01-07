@@ -34,7 +34,7 @@ class Skeleton:
             if allow_nulltype:
                 return ''
             else:
-                raise Exception(f"Skeleton {self.skel_id} does not belong to any category in cat_list")
+                raise Exception(f"Skeleton {self.name} does not belong to any category in cat_list")
         else:
             return str(intersect[0])
 
