@@ -136,7 +136,7 @@ def annot_to_id(annot: str, cfg: Config) -> int:
         if this_annot['name'] == annot:
             annot_id = this_annot['id']
     if annot_id is None:
-        raise Exception(f"The annotation: {annot} does not exist in project: {p_id}")
+        raise Exception(f"The annotation: {annot} does not exist in project: {cfg.p_id}")
     else:
         return annot_id
 

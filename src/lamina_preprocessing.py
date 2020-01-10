@@ -1,6 +1,7 @@
 import argparse
+from pprint import pprint
 import os.path
-
+from glob import glob
 import src.config
 from src.connectome import Connectome
 from src.utils import load_preprocessed_connectome
@@ -8,13 +9,24 @@ from src.utils import load_preprocessed_connectome
 def main():
     analysis_dir = handle_args().cfg_path
     cfg = src.config.parse_cfg_file(analysis_dir)
+    if len(glob(os.path.join(analysis_dir, "*preprocessed.pickle"))) == 0:
+        C = Connectome(cfg)
+        if cfg.save:
+            C.save_connectome()
 
-    C = Connectome(cfg)
-    if cfg.save:
-        C.save_connectome()
-        C.save_linkdf(cfg.out_dir)
+    else:
+        print(f"Preprocessed connectome data found at: {analysis_dir}. "
+              f"Use an empty directory to preform a new fetch")
+        C = load_preprocessed_connectome(cfg.out_dir)
+    C.save_linkdf()
+    C.save_cxdf()
+    '''
+    C.save_linkdf(cfg.out_dir)
+    C.save_cxdf()
+    '''
+    print(C.adj_mat[0])
 
-
+    # Do anything else with C
 
 def handle_args():
 

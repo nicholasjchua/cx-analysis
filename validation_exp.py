@@ -13,32 +13,43 @@
 #     name: wasp
 # ---
 
-# # The contribution of reconstruction error to the variability observed between lamina circuits
-# - How do differences in skeletal reconstruction and synaptic partner identification contribute to variability of our connectivity data?
-# - To control for stochastic/functional differences between lamina circuits, annotators independently reconstructed the same lamina cartridge (C2). These 'validation reconstructions' represent a state prior to a cartridge's 'review process', which is employed for each lamina cartridge presented in our connectome.  
+# # Quantifying Reconstruction Error
+#
+# ### 3-step reconstruction process. 
+# 1. An annotator performs an initial reconstruction of an assigned cartridge: tracing each photoreceptor and lamina neuron contained within the glia-enclosed compartment while labelling every synaptic connection indentified. A critical step of the initial reconstruction is the identification of a siginificant majority (~90%) of the cartridge's postsynaptic arbors by tracing 'backwards' from each unidentified neurite until the arbor connects to a known neuron. 
+# 2. A different annotator will then perform a peer-review of the initial reconstruction. Each synaptic terminal associated with the cartridge is visited to ensure that post synaptic partners were labelled according to our criteria. 
+# 3. Lastly, a senior member of the team will review the number of connection between all the neurons in the cartridge, along with the neuron's branch structure to determine if any outlying features are legittimate anomalies or the result of a skeletal tracing error. 
 
-# %load_ext autoreload
-# %autoreload 0
+# ### Validation Experiments
+# Synapse Labelling Consistency
+# - Fano factor: 1.18
+#
+# Skeletal Consistency
+# - part 1: Variability of initial reconstructions: Most connection counts in C2 vary less between annotators the variance between lamina cartridges in our data
+# - part 2: Variability after review
 
 # +
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import itertools
+from sklearn.linear_model import LinearRegression
 
 from src.fig_utils import hex_to_rgb
-from sklearn.linear_model import LinearRegression
 
 from IPython.display import display, Math, Latex
 # -
 
-print(hex_to_rgb("ffffff"))
+plt.rcParams['lines.linewidth'] = 2
+plt.style.use('default')
+
 
 # +
-val_data_path = '~/Data/191219_exp2/200102_linkdf.pickle'
+val_data_path = '~/Data/200108_exp2/200108_linkdf.pickle'
 
-lamina_links = pd.read_pickle('~/Data/191219_exp2/191204_lamina_link_df.pkl')
+lamina_links = pd.read_pickle('~/Data/200108_exp2/191204_lamina_link_df.pkl')
 val_links = pd.read_pickle(val_data_path)
 
 subtypes = np.unique([*val_links["pre_type"], *val_links["post_type"]])
@@ -115,29 +126,71 @@ print(f"\n{len(sig_cts)} significant connection types (out of a total possible {
 
 # ### Comparing the variance of different connection types
 
-# +
 lamina_var = df_lamina.var().sort_values()
-display(lamina_var)
+lamina_var
 
-n_ex = 3  # show n ctypes with the largest and smallest variance in our connectome
+# +
+
+
+n_ex = 12  # show n ctypes with the largest and smallest variance in our connectome
 low_cts = lamina_var.head(n_ex).index
 high_cts = lamina_var.tail(n_ex).index
 
-fig, axes = plt.subplots(n_ex, 1)
+fig, axes = plt.subplots(n_ex, 2, figsize=(20, 6*n_ex), sharey=True)
 for i in range(0, n_ex):
-    tmp_low = pd.DataFrame(data=[df_lamina[low_cts[i]], df_val[low_cts[i]]], columns=['Lamina connectome', 'Validation experiment'])
-    sns.boxplot(x=tmp_low.columns, data=tmp_low,  
-                palette={'Lamina connectome': cm['lam'], 'Validation experiment': cm['val']}, ax=axes[i])
+    # low var ctypes
+    bp = axes[i, 0].boxplot(x=[df_lamina[low_cts[i]], df_val[low_cts[i]]],
+                            labels=['Lamina connectome', 'Validation experiment'], 
+                            patch_artist=True, vert=True)
+    
+    bp["boxes"][0].set_facecolor(cm['lam'])
+    bp["boxes"][1].set_facecolor(cm['val'])
+    axes[i, 0].set_title(low_cts[i])
+    # high var ctypes
+    bp = axes[i, 1].boxplot(x=[df_lamina[high_cts[i]], df_val[high_cts[i]]],
+                            labels=['Lamina connectome', 'Validation experiment'], 
+                            patch_artist=True, vert=True)
+    
+    bp["boxes"][0].set_facecolor(cm['lam'])
+    bp["boxes"][1].set_facecolor(cm['val'])
+    axes[i, 1].set_title(high_cts[i])
+
+# +
+ctype_order = df_lamina.mean().sort_values(ascending=False).index
+
+fig, ax = plt.subplots(2,1 , figsize=[30, 30], sharex=True)
+sns.boxplot(data = df_lamina[ctype_order].to_numpy(), ax=ax[0], orient='h')
+sns.boxplot(data = df_val[ctype_order].to_numpy(), ax=ax[1], orient='h')
+
+ax[0].set_title("Connection Counts (lamina data)")
+ax[1].set_title("Connection Counts (validation exp)")
+
+ax[0].set_yticklabels(ctype_order.to_numpy())
+ax[1].set_yticklabels(ctype_order.to_numpy())
 
 
-# -
+ax[0].set_xlabel('Connection Counts')
+ax[1].set_xlabel('Connection Counts')
 
+ax[0].tick_params(reset=True)
+ax[1].tick_params(reset=True)
+
+
+
+
+
+# +
 def fano(df):
     return (df.std() ** 2)/df.mean()
+
 '''
+def fano(df):
+    return (df.std() ** 2)/df.mean()
+
 def coef_var(df):
     return df.std()/df.mean()
 '''
+# -
 
 # ### Fano factor: a measure of dispersion for a set of observations
 # - For a given connection type (e.g. LMC_2 -> LMC_1), we have a set of observed connection counts dispersed around a mean value
@@ -155,31 +208,38 @@ lamina_fano = fano(df_lamina).dropna().T
 val_fano = fano(df_val).dropna().T
 
 max_fano = max([lamina_fano.max(), val_fano.max()])
-interval = np.arange(0, max_fano + (10 - max_fano % 10), 0.5)  # round up to nearest 10
+interval = np.arange(0, max_fano + (10 - max_fano % 10), 0.25)  # round up to nearest 10
 
 sns.distplot(lamina_fano, bins = interval,
-             ax=ax, color=cm['lam'], label=f'Lamina Data (n={len(ommatidia)})', kde=False)
+             ax=ax, color=cm['lam'], label=f'Lamina Data (n={len(ommatidia)})')
 sns.distplot(val_fano, bins = interval,
-             ax=ax, color=cm['val'], label='C2 Validation Tracing (n=4)', kde=False)
+             ax=ax, color=cm['val'], label='C2 Validation Tracing (n=4)')
 
 ax.set_title("Fano factor of connection counts")
 ax.set_xlabel("Fano factor")
 ax.set_ylabel("Percentage of connection types")
+ax.set_xlim([0, max_fano])
 ax.legend()
 
 # +
 lamina_var = df_lamina.std().dropna().T ** 2
 val_var = df_val.std().T ** 2
 
+max_var = max([lamina_var.max(), val_var.max()])
+interval = np.arange(0, max_var + (50 - max_var % 50), 5)
+
 fig, ax = plt.subplots(1, figsize=[15, 15])
 
-sns.distplot(lamina_var, ax=ax, color=cm['lam'], label=f'Lamina Data (n={len(ommatidia)})')
-sns.distplot(val_var, ax=ax, color=cm['val'], label='C2 Validation Tracing (n=4)')
+sns.distplot(lamina_var, bins=interval,
+             ax=ax, color=cm['lam'], label=f'Lamina Data (n={len(ommatidia)})')
+sns.distplot(val_var, bins=interval, 
+             ax=ax, color=cm['val'], label='C2 Validation Tracing (n=4)')
 
 ax.set_title("Variability of connection counts")
 ax.set_xlabel("Variance")
-ax.set_ylabel("Percentage of connection types")
+ax.set_ylabel("Percentage of lamina connection types")
 ax.legend()
+ax.set_xlim([0, max([lamina_var.max(), val_var.max()])])
 
 
 # +
@@ -188,16 +248,16 @@ def lin_model_intercept0(x, y):
     y = np.asarray(y)
     return LinearRegression(fit_intercept=False).fit(x, y)
 
-lamina_model = lin_model_intercept0(df_lamina.mean(), df_lamina.std()**2)
-val_model = lin_model_intercept0(df_val.mean(), df_val.std()**2)
+lamina_model = lin_model_intercept0(df_lamina.mean(), df_lamina.var())
+val_model = lin_model_intercept0(df_val.mean(), df_val.var())
 
 # +
 
 fig, ax = plt.subplots(1, figsize=[15, 15])
-xticks = np.arange(0, max((df_lamina.mean().max(), df_val.mean().max()))).reshape(-1, 1)
+xticks = np.arange(0, max((df_lamina.mean().max(), df_val.mean().max())) + 5).reshape(-1, 1)
 
-ax.set_xlim(0, max((df_lamina.mean().max(), df_val.mean().max())))
-ax.set_ylim(0, max((df_lamina.std().max(), df_val.std().max())) ** 2)
+ax.set_xlim(0, max((df_lamina.mean().max(), df_val.mean().max())) + 5)
+ax.set_ylim(0, max((df_lamina.var().max(), df_val.var().max())) + 5)
 
 ax.plot(xticks, lamina_model.predict(xticks), color='g', label="Lamina connectome")
 ax.scatter(df_lamina.mean(), df_lamina.std()**2, color='g')
@@ -210,8 +270,8 @@ ax.set_title("Relationship of each connection type's mean and variance")
 ax.set_xlabel('Mean Count')
 ax.set_ylabel('Variance')
 # -
+df_val.var()[ctype_order].T
 
-
-
+df_val[ctype_order].T
 
 
