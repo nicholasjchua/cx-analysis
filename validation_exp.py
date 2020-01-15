@@ -47,7 +47,7 @@ plt.style.use('default')
 
 
 # +
-val_data_path = '~/Data/200108_exp2/200108_linkdf.pickle'
+val_data_path = '~/Data/200113_exp2/200113_linkdf.pickle'
 
 lamina_links = pd.read_pickle('~/Data/200108_exp2/191204_lamina_link_df.pkl')
 val_links = pd.read_pickle(val_data_path)
@@ -251,7 +251,11 @@ def lin_model_intercept0(x, y):
 lamina_model = lin_model_intercept0(df_lamina.mean(), df_lamina.var())
 val_model = lin_model_intercept0(df_val.mean(), df_val.var())
 
+
 # +
+def model_eval(model, x, y):
+    return f"R^2: {model.score(x.to_numpy().reshape(-1, 1), y): .2f}, coef: {model.coef_[0]: .2f}"
+
 
 fig, ax = plt.subplots(1, figsize=[15, 15])
 xticks = np.arange(0, max((df_lamina.mean().max(), df_val.mean().max())) + 5).reshape(-1, 1)
@@ -259,19 +263,23 @@ xticks = np.arange(0, max((df_lamina.mean().max(), df_val.mean().max())) + 5).re
 ax.set_xlim(0, max((df_lamina.mean().max(), df_val.mean().max())) + 5)
 ax.set_ylim(0, max((df_lamina.var().max(), df_val.var().max())) + 5)
 
-ax.plot(xticks, lamina_model.predict(xticks), color='g', label="Lamina connectome")
+ax.plot(xticks, lamina_model.predict(xticks), color='g', 
+        label=f"Lamina connectome {model_eval(lamina_model, df_lamina.mean(), df_lamina.var())}")
 ax.scatter(df_lamina.mean(), df_lamina.std()**2, color='g')
-ax.plot(xticks, val_model.predict(xticks), color='r', label="Validation experiment")
+ax.plot(xticks, val_model.predict(xticks), color='r', 
+        label=f"Validation experiment  {model_eval(val_model, df_val.mean(), df_val.var())}")
 ax.scatter(df_val.mean(), df_val.std()**2, color='r')
-ax.plot(xticks, xticks*1.18, '--', label='')
+ax.plot(xticks, xticks*1.18, '--', label='Poisson noise (x=y)')
 
 ax.legend()
 ax.set_title("Relationship of each connection type's mean and variance")
 ax.set_xlabel('Mean Count')
 ax.set_ylabel('Variance')
 # -
-df_val.var()[ctype_order].T
+fano(df_val).T
 
 df_val[ctype_order].T
+
+(df_val - df_val.median()).sum(axis=1)
 
 

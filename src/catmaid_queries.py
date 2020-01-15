@@ -197,6 +197,7 @@ def node_with_tag(skel_id: str, root_id: str, tag_regex: str, cfg: Config, first
     if len(data) == 0:
         raise Exception(f"Skeleton {skel_id} does not have a node tagged with {tag_regex}")
     elif first:
+        print(f"{skel_id}: root = {root_id}, with tag = {data}")
         return str(data[0][0])
     else:
         print("list of {len(data)} nodes and their node_data")
@@ -225,16 +226,9 @@ def skel_compact_detail(skel_id: str, cfg: Config) -> List:
 
 
 # CONNECTOR QUERIES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def cx_in_skel(skel_id: str, cfg: Dict, r_nodes: List=None) -> Tuple:
+def cx_in_skel(skel_id: str, cfg: Config, r_nodes: List) -> Tuple:
     """
     Get a Dict of all connectors PRESYNAPTICally associated with a neuron, and the associated link data
-
-    :param token:
-    :param p_id:
-    :param skel_id:
-    :param r_str: Optional tag used to filter out links that are not in between the skeleton's root_node and the
-    first node tagged with 'r_str'
-    :return connector_data: Dict, with entries for each of its presynaptic connector_ids: [link_data]
     """
 
     op_path = "/connectors/"
@@ -247,25 +241,38 @@ def cx_in_skel(skel_id: str, cfg: Dict, r_nodes: List=None) -> Tuple:
     # data['partners'] is how you get the cx_id: [links] dictionary
 
     r_connectors = set()
-    connector_data = dict()
-    link_data = []
+    tmp_connector_data = dict()
+    tmp_link_data = []
     for cx_id, p_data in data["partners"].items():
         for link in p_data:
-            if link[3] != 16:
+            if link[3] == 15 and str(link[1]) in r_nodes:
+                # print(f"Found a restricted connector {cx_id}")
+                r_connectors.add(cx_id)
                 continue
-            else:
+            elif link[3] == 16:
+                '''
                 if r_nodes is not None and str(link[1]) in r_nodes:
+                    print(f"Found a restricted connector {cx_id}")
                     r_connectors.add(cx_id)
                     continue
                 else:
-                    link_data.append({'link_id': str(link[0]),
+                '''
+                tmp_link_data.append({'link_id': str(link[0]),
                                       'pre_skel': skel_id,
                                       'post_skel': str(link[2]),
-                                      'post_node': str(link[1]),  # need to confirm is this is treenode
+                                      'post_node': str(link[1]),
                                       'cx_id': cx_id})
-                    connector_data.setdefault(cx_id, []).append(link)
+                tmp_connector_data.setdefault(cx_id, []).append(link)
+            else:
+                continue
+    # Filter out restricted ones
+    if len(r_connectors) > 0:
+        link_data = [l for l in tmp_link_data if l['cx_id'] not in r_connectors]
+        connector_data = {c: data for c, data in tmp_connector_data.items() if c not in r_connectors}
+    else:
+        link_data = tmp_link_data
+        connector_data = tmp_connector_data
 
-    #print(f"connectors: {len(connector_data.keys())}, excluded connectors = {len(r_connectors)}")
     return connector_data, link_data, list(r_connectors)
 
 

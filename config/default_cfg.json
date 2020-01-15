@@ -37,6 +37,6 @@
   ],
   "restrict_skeletons": {
     "restrict_tags": "",
-    "restrict_for": ""
+    "restrict_for": []
   }
 }

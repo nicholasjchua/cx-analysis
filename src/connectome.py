@@ -141,9 +141,8 @@ class Connectome:
 
         for id, n in tqdm(ids_to_names.items()):
             g = ids_to_groups[id]
+            ### Skeleton object instantiated here ###
             skel_data[id] = Skeleton(id, n, g, self.cfg)
-            #print(skel_data[id].name)
-            #print(skel_data[id].group)
         return skel_data, ids_to_names, grouping
 
     def __group_neurons(self, ids_to_names: Dict):

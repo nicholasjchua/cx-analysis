@@ -1,12 +1,9 @@
 import json
 from typing import Dict, Tuple
+from vis.fig_tools import hex_to_rgb
 
-def hex_to_rgb(hex: str) -> Tuple:
-    h = hex.lstrip('#')
-    assert(len(h) == 6)
-    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
 
-def subtype_cm(fp: str="vis/lamina_subtype_cm.json", rgb: bool=False) -> Dict:
+def subtype_cm(fp: str="vis/lamina_palette.json", rgb: bool=False) -> Dict:
     """
     Get map of 'subtype' to 'hex colour' from json file
     :param fp: str, File containing colormap

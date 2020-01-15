@@ -5,40 +5,43 @@ from src.config import Config
 from scipy.spatial import distance
 
 
-def nodes_betwixt(skel_id: str, cfg: Config, restrict_tag: Union[str, Tuple], nodes: List=None,
+def nodes_betwixt(skel_id: str, cfg: Config, restrict_tags: Union[str, Tuple], nodes: List=None,
                        invert: bool=True) -> Union[List[str], Tuple]:
     """
     Get a list of node_ids for nodes between two specified tags on a skeleton.
     TODO: allow this to take node_ids for start and end instead
     :param skel_id: Skeleton ID
-    :param restrict_tag: str or tuple of two strings. Giving just one will define the segment as root -> tag
+    :param restrict_tags: str or tuple of two strings. Giving just one will define the segment as root -> tag
     :param nodes: (optional) list of node IDs so they aren't fetched again
     :param invert: If true, returns the nodes OUTSIDE the tagged segment.
     :return:
     """
-    root_id = get_root_id(cfg)
+    root_id = get_root_id(skel_id, cfg)
 
     if nodes is None:
         node_list = skel_compact_detail(skel_id, cfg)
     else:
         node_list = nodes
 
-    if type(restrict_tag) is str:
+    if type(restrict_tags) is str:
         start = root_id
-        end = node_with_tag(skel_id, root_id, restrict_tag, cfg)
+        end = node_with_tag(skel_id, root_id, restrict_tags, cfg)
+    elif len(restrict_tags) == 1:
+        start = root_id
+        end = node_with_tag(skel_id, root_id, restrict_tags[0], cfg)
+    elif len(restrict_tags) == 2:
+        start = node_with_tag(skel_id, root_id, restrict_tags[0], cfg)
+        end = node_with_tag(skel_id, root_id, restrict_tags[1], cfg)
     else:
-        start = node_with_tag(skel_id, root_id, restrict_tag, cfg)
-        end = node_with_tag(skel_id, root_id, restrict_tag, cfg)
-    dist = check_dist(start, end, cfg)
-    print(f'Nodes defining skeletal segment for {skel_id} are {dist} nm apart (as the crow flies)')
+        raise Exception("More than two restrict_tagss given")
 
+    dist = check_dist(start, end, cfg)
     nodes_within = traverse_nodes(node_list, int(start), int(end))
-    # pprint(f"Total nodes: {len(node_list)}, Nodes between tags: {len(nodes_within)}")
 
     if invert:  # TODO log number of nodes before/after restricting
         return [str(n[0]) for n in node_list if n[0] not in nodes_within]
     else:
-        return nodes_within
+        return [str(n) for n in nodes_within]
 
 
 def dist_two_nodes(n1: str, n2: str, cfg: Config) -> float:

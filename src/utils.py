@@ -40,13 +40,27 @@ def pack_pickle(data, data_dir: str, f_label: str, overwrite: bool=False):
             pickle.dump(data, f)
 
 
-
 def load_preprocessed_connectome(data_dir: str):
 
     # TODO change to pkl
     C = unpack_pickle(data_dir, '*_preprocessed.pickle')
     return C
 
+
+def index_by_om(df_long: pd.DataFrame) -> pd.DataFrame:
+    """
+    Pivot our connections df so that it is indexed by ommatidia, columns for each connection type's counts,
+    columns sorted by descending mean counts
+    :param df_long: DataFrame, contains different with a row for each c_type x om combo
+    :return: df_om: DataFrame, number of rows = number of om
+    """
+    df_om = pd.pivot_table(df_long, index='om', columns='cx_type', values='n_connect')
+    col_i = np.argsort(df_om.mean())[::-1]  # sort by most numerous, on average, connection type
+    sorted_cols = df_om.columns[col_i]
+    df_om = df_om.reindex(sorted_cols, axis=1)
+    df_om.columns = pd.Series(df_om.columns).astype(str)
+
+    return df_om
 
 def div0(a: np.array, b: np.array, decimals: int=None) -> np.array:
     """
