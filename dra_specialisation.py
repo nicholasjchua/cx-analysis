@@ -15,8 +15,9 @@
 
 # # Dorsal Rim Specialisation
 
-# %load_ext autoreload
-# %autoreload 2
+# +
+# # %load_ext autoreload
+# # %autoreload 2
 
 # +
 import os.path
@@ -149,7 +150,15 @@ bp["boxes"][0].set_facecolor(cm['R7'])
 bp["boxes"][1].set_facecolor(cm['R7'])
 
 plt.show()
+
+# +
+
+
+sns.distplot(r7_inputs)
+sns.distplot(r7p_inputs)
 # -
+
+
 
 # ## Relationship between connection counts and optical measurements
 
@@ -171,7 +180,7 @@ ax.set_title(f"R^2 = {r7_v_twist.score(widedf['centri->R7'].to_numpy().reshape(-
 '''
 
 # +
-fig, ax = plt.subplots(1)
+fig, ax = plt.subplots(1, figsize=[15, 15])
 ax.set_xlabel('Number of R7 inputs')
 ax.set_ylabel('Rhabdom angular difference (degrees)')
 
@@ -205,7 +214,7 @@ res = model.fit()
 display(res.summary())
 
 xticks = np.arange(0, x.max()).reshape(-1, 1)
-sm.graphics.plot_fit(res, 0, ax=ax)
+sm.graphics.plot_fit(res, 0, ax=ax, figsize=[15, 15])
 #ax.plot(xticks, model.fit(xticks), label=f"R^2 = {model.score(x, y): .3f}")
 #ax.scatter(x, y)
 ax.legend()

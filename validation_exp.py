@@ -14,11 +14,17 @@
 # ---
 
 # # Quantifying Reconstruction Error
+# ## Replicate tracings of a lamina cartridge
 #
-# ### 3-step reconstruction process. 
-# 1. An annotator performs an initial reconstruction of an assigned cartridge: tracing each photoreceptor and lamina neuron contained within the glia-enclosed compartment while labelling every synaptic connection indentified. A critical step of the initial reconstruction is the identification of a siginificant majority (~90%) of the cartridge's postsynaptic arbors by tracing 'backwards' from each unidentified neurite until the arbor connects to a known neuron. 
+# The reconstruction of each lamina circuit can broken down into three distinct steps
+#
+# 1. An annotator performs an initial dense reconstruction of an assigned cartridge: Every neurite contained within the cartridge is  labelling every synaptic connection indentified. A critical step of the initial reconstruction is the identification of a siginificant majority (~90%) of the cartridge's postsynaptic arbors by tracing 'backwards' from each unidentified neurite until the arbor connects to a known neuron. 
 # 2. A different annotator will then perform a peer-review of the initial reconstruction. Each synaptic terminal associated with the cartridge is visited to ensure that post synaptic partners were labelled according to our criteria. 
 # 3. Lastly, a senior member of the team will review the number of connection between all the neurons in the cartridge, along with the neuron's branch structure to determine if any outlying features are legittimate anomalies or the result of a skeletal tracing error. 
+#
+# To quantify the observed variability in our connectome that could be explained by our reconstruction methodology, our four annotators performed replicate tracings of a previously untraced lamina cartridge. These replicates were produced independently before being subject to our review process outlined above. 
+#
+# We observed that the variability of contact contact counts among different cartridges in our lamina connectome exceeds the variability we observe in our replicate experiment, where the same structure was reconstructed by different people. A significant source of variability between our replicates was the result of errors in skeletal representation, for example, a missing branch or a misattributed arbor. Depending on the length of skeleton missed or misattributed, these errors can cause significant outliers in the number of contacts observed for a particular type of connection. These errors were present both in our connectome and in our replicate experiment. Our analysis suggests that skeletal errors causing significant descripencies in contact counts are sufficiently mitigated by our review process. By reconstructing a series of stereotyped circuits, we can continuosly refer to our model to pinpoint potential skeletal errors, a task that is typically very difficult and inefficient to do naively (like finding a needle in a haystack). Once a discrepency is identified in either the individual circuit's adjacency matrix or dendrogram, we determine if the discrepency is an actual biological anomaly (which we have examples of) or the result of a mistake. Before performing a correction, we require the identification of a point of failure (typically in the form a point where a membrane is illegally crossed by nodes of the skeleton) and a more convincing alternative path that an arbor could take. 
 
 # ### Validation Experiments
 # Synapse Labelling Consistency
@@ -47,7 +53,7 @@ plt.style.use('default')
 
 
 # +
-val_data_path = '~/Data/200113_exp2/200113_linkdf.pickle'
+val_data_path = '~/Data/200121_exp2/200121_linkdf.pickle'
 
 lamina_links = pd.read_pickle('~/Data/200108_exp2/191204_lamina_link_df.pkl')
 val_links = pd.read_pickle(val_data_path)
@@ -83,7 +89,7 @@ for om, row in df_lamina.iterrows():
                                        (lamina_links.pre_type == pre_t) & (lamina_links.post_type == post_t))
 
 ### A1 temporarily removed (it has no connections?)
-df_lamina = df_lamina.drop(str('A1'), axis=0)
+#df_lamina = df_lamina.drop(str('A1'), axis=0)
 
 # cx counts from validation experiment
 df_val = pd.DataFrame(index=annotators, columns=all_ctype_labels)
@@ -112,7 +118,9 @@ sig_thresh = 1.0
 
 # need to change L4 nans so they won't be considered as < thresh when computing condition
 df_lamina[df_lamina.isna()] = 1000.0 
-condition = (df_lamina >= int(sig_thresh)).all()
+#condition = (df_lamina >= int(sig_thresh)).all()
+condition = (df_lamina.mean() >= sig_thresh)
+
 df_lamina[df_lamina == 1000.0] = np.nan
 df_val = df_val.loc[:, condition]
 df_lamina = df_lamina.loc[:, condition]
@@ -158,7 +166,9 @@ for i in range(0, n_ex):
 # +
 ctype_order = df_lamina.mean().sort_values(ascending=False).index
 
-fig, ax = plt.subplots(2,1 , figsize=[30, 30], sharex=True)
+display(len(ctype_order))
+
+fig, ax = plt.subplots(2,1 , figsize=[30, 25], sharex=True)
 sns.boxplot(data = df_lamina[ctype_order].to_numpy(), ax=ax[0], orient='h')
 sns.boxplot(data = df_val[ctype_order].to_numpy(), ax=ax[1], orient='h')
 
@@ -260,8 +270,8 @@ def model_eval(model, x, y):
 fig, ax = plt.subplots(1, figsize=[15, 15])
 xticks = np.arange(0, max((df_lamina.mean().max(), df_val.mean().max())) + 5).reshape(-1, 1)
 
-ax.set_xlim(0, max((df_lamina.mean().max(), df_val.mean().max())) + 5)
-ax.set_ylim(0, max((df_lamina.var().max(), df_val.var().max())) + 5)
+#ax.set_xlim(0, max((df_lamina.mean().max(), df_val.mean().max())) + 5)
+#ax.set_ylim(0, max((df_lamina.var().max(), df_val.var().max())) + 5)
 
 ax.plot(xticks, lamina_model.predict(xticks), color='g', 
         label=f"Lamina connectome {model_eval(lamina_model, df_lamina.mean(), df_lamina.var())}")
@@ -269,7 +279,11 @@ ax.scatter(df_lamina.mean(), df_lamina.std()**2, color='g')
 ax.plot(xticks, val_model.predict(xticks), color='r', 
         label=f"Validation experiment  {model_eval(val_model, df_val.mean(), df_val.var())}")
 ax.scatter(df_val.mean(), df_val.std()**2, color='r')
-ax.plot(xticks, xticks*1.18, '--', label='Poisson noise (x=y)')
+ax.plot(xticks, xticks*1.18, '--', color='r', label='Synapse Labelling (average fano = 1.18)')
+ax.plot(xticks, xticks, '--', label='Poisson noise (x=y)')
+
+# ax.set_yscale('log')
+# ax.set_xscale('log')
 
 ax.legend()
 ax.set_title("Relationship of each connection type's mean and variance")
@@ -278,8 +292,8 @@ ax.set_ylabel('Variance')
 # -
 fano(df_val).T
 
-df_val[ctype_order].T
+df_val[ctype_order].var()
 
-(df_val - df_val.median()).sum(axis=1)
+(df_val).T
 
 

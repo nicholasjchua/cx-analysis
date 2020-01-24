@@ -117,10 +117,11 @@ def parse_cfg_file(path: str="") -> Config:
         raise Exception("Invalid 'groupby' argument. Needs to be 'annotator' or 'om'. Former also requires"
                         "a list of annotator initials in the config file")
 
-    if cfg['restrict_skeletons']['restrict_tags'] == []:
-        restrict = False
-    else:
-        restrict = cfg['restrict_skeletons']
+    restrict = cfg['restrict_skeletons']
+    # if cfg['restrict_skeletons']['restrict_tags'] == []:
+    #     restrict =
+    # else:
+    #     restrict = cfg['restrict_skeletons']
 
     return Config(
         source=fp,
