@@ -20,7 +20,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy.special import comb
+from scipy.stats import mannwhitneyu
 from typing import Tuple
+from itertools import combinations
 
 from src.utils import index_by_om
 
@@ -28,11 +31,12 @@ import matplotlib as mpl
 mpl.rc('font', size=14)
 # -
 
-data_path = '~/Data/200115_lamina/200115_cxdf.pickle'
+data_path = '~/Data/200131_lamina/200131_cxdf.pickle'
 cxdf = pd.read_pickle(data_path)
 df_all = index_by_om(cxdf)
-criteria = [(df_all[ct].mean() >= 5.0) for ct in df_all.columns]
+criteria = [(df_all[ct].mean() >= 1.0) for ct in df_all.columns]
 df = df_all.loc[:, criteria]
+om_list = df.index
 
 
 # +
@@ -63,49 +67,72 @@ def triangle_subregions(om_list, d=1):
         if all(coord_to_id(c) in om_list for c in down_right):
             subgroups.append(down_right)
         
-    return [{coord_to_id(a), coord_to_id(b), coord_to_id(c)} for a, b, c in subgroups]
+    return [sorted([coord_to_id(a), coord_to_id(b), coord_to_id(c)]) for a, b, c in subgroups]
             
        
         
 # -
 
-om_list = df.index
-subgroups = triangle_subregions(om_list)
-display(type(om_list[0]))
+
 
 # +
+local_trios = triangle_subregions(om_list)
 
+local_var = []
+local_fano = []
+for trio in local_trios:
+    local_var.append(df.loc[trio].var().sum())
+    local_fano.append((df.loc[trio].var()/df.loc[trio].mean()).mean())
 
-trios_var = []
-trios_mn_fano = []
-for members in subgroups:
-    trios_var.append(df.loc[members].var().sum())
-    trios_mn_fano.append((df.loc[members].var()/df.loc[members].mean()).mean())
-
-trio_df = pd.DataFrame(data={'trio': [a+b+c for a, b, c in subgroups], 
-                             'total_var': trios_var,
-                            'mean_fano': trios_mn_fano})
-display(trio_df)
-    
+local = pd.DataFrame(data={'trio': [a+b+c for a, b, c in local_trios], 
+                           'total_var': local_var, 'mean_fano': local_fano})
 
 # +
-n_rand_trios = 10000
-rand_trios = []
-rand_trios_var = []
-rand_fano = []
+# Draw all possible trios (excluding the neighboring trios) 
+non_local_trios = [sorted(list(trio)) for trio in combinations(om_list, 3) if sorted(list(trio)) not in local_trios]
+# number of non-local trios should = NC3 - number of neighboring trios, where N is the number of ommatidia
+assert(len(non_local_trios) == comb(len(om_list), 3, exact=True) - len(local_trios))
 
-for i in range(0, n_rand_trios):
-    members = random.sample(set(om_list), 3)
-    rand_trios.append(members)
-    rand_trios_var.append(df.loc[members].var().sum())
-    rand_fano.append((df.loc[members].var()/df.loc[members].mean()).mean())
-rand_trio_df = pd.DataFrame(data={'trio': rand_trios, 'total_var': rand_trios_var, 'mean_fano': rand_fano})
+non_local_var = []
+non_local_fano = []
+for trio in non_local_trios:
 
+    non_local_var.append(df.loc[trio].var().sum())
+    non_local_fano.append((df.loc[trio].var()/df.loc[trio].mean()).mean())
 
+non_local = pd.DataFrame(data={'trio': [a+b+c for a, b, c in non_local_trios], 
+                               'total_var': non_local_var, 'mean_fano': non_local_fano})
 # -
 
-fig, ax = plt.subplots(1)
-sns.distplot(trio_df['mean_fano'], ax=ax)
-sns.distplot(rand_trio_df['mean_fano'], ax=ax)
+# ## Circuit variability of local retinotopic subgroups
+#
+#
+# Two sample Mann-Whitney U test (one tailed)
+#
+# $H_{0}: P(\sigma^2_{local} > \sigma^2_{non-local}) >= 1/2 $
+#
+# The variance of neighboring trios is more than or equal to the variance of non-local trios  
+#
+# $H_{1}: P(\sigma^2_{local} > \sigma^2_{non-local}) < 1/2 $  
+#
+# The variance of neighboring trios is less than the variance of non-local trios 
+
+s, p = mannwhitneyu(local['total_var'], non_local['total_var'], alternative='less')
+print(f"Test statistic: {s}, p-value: {p: .6f}")
+
+# +
+fig, ax = plt.subplots(1, figsize=[15, 15])
+
+sns.distplot(local['mean_fano'], bins=np.linspace(0,6,64),
+             ax=ax, label=f'Neighboring subgroups (n={len(local_trios)})')
+sns.distplot(non_local['mean_fano'], bins=np.linspace(0,6,64), ax=ax, label=f'Non-neighboring subgroups (n={len(non_local_trios)}')
+
+ax.set_title('The circuitry of neighboring cartridges has less variation than non-neighboring trios')
+ax.set_xlabel("Fano-factor of trios's connectivity vectors (averaged across connection type)")
+ax.set_ylabel("% trios")
+
+ax.legend()
+
+# -
 
 

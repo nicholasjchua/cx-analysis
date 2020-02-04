@@ -24,18 +24,9 @@
 #
 # To quantify the observed variability in our connectome that could be explained by our reconstruction methodology, our four annotators performed replicate tracings of a previously untraced lamina cartridge. These replicates were produced independently before being subject to our review process outlined above. 
 #
-# We observed that the variability of contact contact counts among different cartridges in our lamina connectome exceeds the variability we observe in our replicate experiment, where the same structure was reconstructed by different people. A significant source of variability between our replicates was the result of errors in skeletal representation, for example, a missing branch or a misattributed arbor. Depending on the length of skeleton missed or misattributed, these errors can cause significant outliers in the number of contacts observed for a particular type of connection. These errors were present both in our connectome and in our replicate experiment. Our analysis suggests that skeletal errors causing significant descripencies in contact counts are sufficiently mitigated by our review process. By reconstructing a series of stereotyped circuits, we can continuosly refer to our model to pinpoint potential skeletal errors, a task that is typically very difficult and inefficient to do naively (like finding a needle in a haystack). Once a discrepency is identified in either the individual circuit's adjacency matrix or dendrogram, we determine if the discrepency is an actual biological anomaly (which we have examples of) or the result of a mistake. Before performing a correction, we require the identification of a point of failure (typically in the form a point where a membrane is illegally crossed by nodes of the skeleton) and a more convincing alternative path that an arbor could take. 
-
-# ### Validation Experiments
-# Synapse Labelling Consistency
-# - Fano factor: 1.18
-#
-# Skeletal Consistency
-# - part 1: Variability of initial reconstructions: Most connection counts in C2 vary less between annotators the variance between lamina cartridges in our data
-# - part 2: Variability after review
+# We observed that the variability of contact contact counts among different cartridges in our lamina connectome exceeds the variability we observe in our replicate experiment, where the same structure was reconstructed by different people. A significant source of variability between our replicates was the result of errors in skeletal representation, for example, a missing branch or a misattributed arbor. Depending on the length of skeleton missed or misattributed, these errors can cause significant outliers in the number of contacts observed for a particular type of connection. These errors were present both in our connectome and in our replicate experiment. Our analysis suggests that skeletal errors causing significant descripencies in contact counts are sufficiently mitigated by our review process. By reconstructing a series of stereotyped circuits, we can continuosly refer to our model to pinpoint potential skeletal errors, a task that is typically very difficult and inefficient to do naively (like finding a needle in a haystack). Once a discrepency is identified in either the individual circuit's adjacency matrix or dendrogram, we determine if the discrepency is an actual biological anomaly (which we have examples of) or the result of a mistake. Before performing a correction, we require both the identification of a point of failure (a location on the skeleton that crosses a membrane boundary into another cell) along with an alternative path that links the disconnected arbor to a known neurite without crossing any cell membranes. If we are certain a membrane was cross, but are unable to link the arbor to a known neurite, the arbor will be given an unidentified status, and factored into the cartridge's fraction of unidentified synaptic contacts.  
 
 # +
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -53,15 +44,23 @@ plt.style.use('default')
 
 
 # +
-val_data_path = '~/Data/200121_exp2/200121_linkdf.pickle'
+# Lamina connectome - synaptic contacts (use most recent fetch)
+lamina_links = pd.read_pickle('~/Data/200128_lamina/200128_linkdf.pickle')
 
-lamina_links = pd.read_pickle('~/Data/200108_exp2/191204_lamina_link_df.pkl')
+# Replicate connectome - synaptic contacts
+# Review timepoints: 200121, 200117, 200113, 200108, 191219
+timepoint = "200121"
+val_data_path = f"~/Data/{timepoint}_exp2/{timepoint}_linkdf.pickle"
 val_links = pd.read_pickle(val_data_path)
 
-subtypes = np.unique([*val_links["pre_type"], *val_links["post_type"]])
+# +
+#val_links
+# -
+
+# Semantic details
+subtypes = np.unique([*lamina_links["pre_type"], *lamina_links["post_type"]])
 annotators = np.unique(val_links["pre_om"])
 ommatidia = np.unique(lamina_links['pre_om'])
-
 # all possible ('pre', 'post') permutations
 all_ctypes = [p for p in itertools.product(subtypes, subtypes)]  
 all_ctype_labels = [f"{pre}->{post}" for pre, post in all_ctypes]
@@ -69,77 +68,71 @@ all_ctype_labels = [f"{pre}->{post}" for pre, post in all_ctypes]
 cm = {'lam': "#383a3f", 
      'val': "#bf3b46"}
 
-# -
-
 # ### Preprocess connectivity data
-# - ignores interommatidial connections
-# - For posterior edges cartridges (that lack their own L4s), connections postsynaptic to L4 will be filled in with np.nan instead of zero: i.e. they are not included in mean/var calculations for that connection type. C2 is not a posterior edge cartridge
+# - Transform to a wide dataframe with each connection type as a column 
+# - LMC_4 ctypes in ommatidia without L4 neurons are counted as np.nan
+# - ignores interommatidial connections TODO: include
 
 # +
 # cx counts from lamina connectome
-df_lamina = pd.DataFrame(index=ommatidia, columns=all_ctype_labels)
-for om, row in df_lamina.iterrows():
+df_lamina_all = pd.DataFrame(index=ommatidia, columns=all_ctype_labels)
+for om, row in df_lamina_all.iterrows():
     for c in all_ctype_labels:
         pre_t, post_t = c.split('->')
         # Cartridges on the posterior edge lack L4, so their counts for these connections are NaNed 
-        if om in ['B0', 'E4', 'E5', 'E6', 'E7', 'D2'] and post_t == 'LMC_4':
-            df_lamina.loc[om, c] = np.nan
+        if om in ['B0', 'E4', 'E5', 'E6', 'E7', 'D2'] and (post_t == 'LMC_4'):
+            df_lamina_all.loc[om, c] = np.nan
         else:
-            df_lamina.loc[om, c] = sum((lamina_links.pre_om == om) & (lamina_links.post_om == om) & 
-                                       (lamina_links.pre_type == pre_t) & (lamina_links.post_type == post_t))
-
-### A1 temporarily removed (it has no connections?)
-#df_lamina = df_lamina.drop(str('A1'), axis=0)
+            df_lamina_all.loc[om, c] = sum((lamina_links.pre_om == om) & (lamina_links.post_om == om) & 
+                                           (lamina_links.pre_type == pre_t) & (lamina_links.post_type == post_t))
 
 # cx counts from validation experiment
-df_val = pd.DataFrame(index=annotators, columns=all_ctype_labels)
-for annot, row in df_val.iterrows():
+df_val_all = pd.DataFrame(index=annotators, columns=all_ctype_labels)
+for annot, row in df_val_all.iterrows():
     for c in all_ctype_labels:
         pre_t, post_t = c.split('->')
-        df_val.loc[annot, c] = sum((val_links.pre_om == annot) & (val_links.post_om == annot) & 
-                                   (val_links.pre_type == pre_t) & (val_links.post_type == post_t))
+        df_val_all.loc[annot, c] = sum((val_links.pre_om == annot) & (val_links.post_om == annot) & 
+                                       (val_links.pre_type == pre_t) & (val_links.post_type == post_t))
 # -
 
-# ### Defining connection types that are consistently observed for all ommatidia in our lamina connectome
-# Alternatives:
-# 1. Average count above a certain threshold
-# 2. Every observation exceeds a threshold 
+# ### Define connection types to compare
+# Options: 
+# 1. 'mean_thresh': Threshold by mean connection counts from the lamina connectome
+# 2. 'consistently_observed': Exclude connections not observed in every lamina cartridge
+# 3. 'all': All (n_subtypes x n_subtypes) possible synaptic permutations
 
 # +
-sig_thresh = 1.0
+inclusion = 'all'
 
-######### 1. Threshold: mean count must exceed threshold
-# df_val = df_val.loc[:, (df_lamina.mean() > sig_thresh)]
-# df_lamina = df_lamina.loc[:, (df_lamina.mean() > sig_thresh)]
+sig_thresh = 1.0  # not used for 'all'
 
-
-######### 2. Threshold: all observations of that ctype must exceed thereshold
-#display(df_lamina.filter(like='A1', axis='index'))
-
-# need to change L4 nans so they won't be considered as < thresh when computing condition
-df_lamina[df_lamina.isna()] = 1000.0 
-#condition = (df_lamina >= int(sig_thresh)).all()
-condition = (df_lamina.mean() >= sig_thresh)
-
-df_lamina[df_lamina == 1000.0] = np.nan
-df_val = df_val.loc[:, condition]
-df_lamina = df_lamina.loc[:, condition]
+######### 2. mean count must exceed threshold  
+if inclusion == 'mean_tresh':
+    df_lamina = df_lamina[df_lamina.mean() >= sig_thresh]
+    df_val = df_val[df_lamina.mean() >= sig_thresh]
+    incl_method = f"Connections with mean contact count >= {sig_thresh} across all lamina cartridges"
+######### 3. is ctype > thresh in every circuit
+elif inclusion == 'consistently_observed':
+    criteria = [(df_lamina_all[ct].dropna() >= sig_thresh).all() for ct in df_lamina_all.columns]
+    df_lamina = df_lamina_all.loc[:, criteria]
+    df_val = df_val_all.loc[:, criteria]
+    incl_method = f"Connections observed with contact count >= {sig_thresh} in all lamina cartridges"
+######### 3. All connections (DEFAULT)
+else:
+    if inclusion != 'all':
+        print("For inclusion criteria, pick either 'all', 'mean_thresh', or 'consistently_observed'. Defaulting to 'all'")
+    df_lamina = df_lamina_all
+    df_val = df_val_all
+    incl_method = "All connection types"
 
 sig_cts = df_val.columns
-display(sig_cts)
-
 assert(len(df_val.columns) == len(df_lamina.columns)) 
 print(f"\n{len(sig_cts)} significant connection types (out of a total possible {len(all_ctypes)} pre/post permutations)")
 # -
 
 # ### Comparing the variance of different connection types
 
-lamina_var = df_lamina.var().sort_values()
-lamina_var
-
-# +
-
-
+'''
 n_ex = 12  # show n ctypes with the largest and smallest variance in our connectome
 low_cts = lamina_var.head(n_ex).index
 high_cts = lamina_var.tail(n_ex).index
@@ -162,18 +155,17 @@ for i in range(0, n_ex):
     bp["boxes"][0].set_facecolor(cm['lam'])
     bp["boxes"][1].set_facecolor(cm['val'])
     axes[i, 1].set_title(high_cts[i])
+'''
 
 # +
 ctype_order = df_lamina.mean().sort_values(ascending=False).index
-
-display(len(ctype_order))
 
 fig, ax = plt.subplots(2,1 , figsize=[30, 25], sharex=True)
 sns.boxplot(data = df_lamina[ctype_order].to_numpy(), ax=ax[0], orient='h')
 sns.boxplot(data = df_val[ctype_order].to_numpy(), ax=ax[1], orient='h')
 
-ax[0].set_title("Connection Counts (lamina data)")
-ax[1].set_title("Connection Counts (validation exp)")
+ax[0].set_title("Connection Counts (lamina data)\n" + incl_method + '\n' + timepoint)
+ax[1].set_title("Connection Counts (validation exp)\n" + incl_method + '\n' + timepoint)
 
 ax[0].set_yticklabels(ctype_order.to_numpy())
 ax[1].set_yticklabels(ctype_order.to_numpy())
@@ -286,7 +278,9 @@ ax.plot(xticks, xticks, '--', label='Poisson noise (x=y)')
 # ax.set_xscale('log')
 
 ax.legend()
-ax.set_title("Relationship of each connection type's mean and variance")
+ax.set_title("Relationship of each connection type's mean and variance\n" + 
+            f"Val timepoint: {timepoint}\n"
+            f"{incl_method}, n={len(sig_cts)}")
 ax.set_xlabel('Mean Count')
 ax.set_ylabel('Variance')
 # -
@@ -295,5 +289,7 @@ fano(df_val).T
 df_val[ctype_order].var()
 
 (df_val).T
+
+
 
 

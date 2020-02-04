@@ -45,8 +45,8 @@ mpl.rc('font', size=14)
 
 # +
 # Each ommatidia's onnection counts
-data_dir = '~/Data/200115_lamina'
-cxdf = pd.read_pickle(os.path.join(os.path.expanduser(data_dir), '200115_cxdf.pickle'))
+data_dir = '~/Data/200128_lamina'
+cxdf = pd.read_pickle(os.path.join(os.path.expanduser(data_dir), '200128_cxdf.pickle'))
 widedf = index_by_om(cxdf)  # pivot so that each row is an ommatidium with columns for each possible connection count
 
 # Anastasia's measurements for each Rhabdom's twist
@@ -65,8 +65,6 @@ cm = subtype_cm()
 # +
 # Retinotopic map
 fig, ax = plt.subplots(1, 2, figsize=[20, 15])
-ax[0].set_aspect('equal')
-ax[1].set_aspect('equal')
 
 r7_inputs = widedf.filter(items=['centri->R7', 'LMC_2->R7', 'R2R5->R7']).sum(axis=1)
 r7cm = linear_cmap(n_vals=r7_inputs.max() - r7_inputs.min(), max_colour=cm['R7'])
@@ -102,7 +100,7 @@ if p > 0.001:
 else:
     print("Reject null: DRA R7 receive more inputs")
 
-# ## Angular displacement of rhabdom microvilli is significantly less in DRA ommatidia 
+# ## Angular displacement of rhabdom microvilli is significantly smaller in DRA ommatidia 
 # Two sample Mann-Whitney U test (one tailed)
 #
 # $$H_{0}: P(x_{i} < y_{j}) <= 1/2$$

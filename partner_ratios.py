@@ -24,7 +24,7 @@ import matplotlib as mpl
 mpl.rc('font', size=14)
 
 # +
-data_path = '~/Data/200115_lamina/200115_linkdf.pickle'
+data_path = '~/Data/200131_lamina/200131_linkdf.pickle'
 df = pd.read_pickle(data_path)
 
 df['post_type'].describe()
@@ -115,7 +115,7 @@ svfs = ['R1R4', 'R2R5', 'R3R6']
 
 dist_args = {'n': 10,
             'n_trials': 1000}
-fig, axes = plt.subplots(4, 3, sharex=True, figsize=[20, 15])
+fig, axes = plt.subplots(4, 3, figsize=[20, 15])
 display(axes.shape)
 
 for i, post in enumerate(lmcs):
@@ -123,10 +123,10 @@ for i, post in enumerate(lmcs):
 
 
         r = sample_ratios(df, pre, post, **dist_args)
-        sns.distplot(r, norm_hist=True, ax=axes[i, ii])
+        sns.distplot(r, kde=False, ax=axes[i, ii])
         axes[i, ii].set_title(f'{pre} -> {post}')
 
-
+plt.show()
 
 
 

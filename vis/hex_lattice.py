@@ -8,7 +8,7 @@ from pprint import pprint
 from vis.fig_tools import scale_distance_between
 
 def hexplot(node_data: Dict, edge_data: Dict=None, ax: plt.Axes=None,
-            scale_factor: float=0.5, n_rgba: Tuple=(0.8, 0.8, 0.8, 0.5),
+            scale_factor: float=0.1, n_rgba: Tuple=(0.8, 0.8, 0.8, 0.5),
             e_colour='r'):
     """
     Plot a map of the hexagonal lattice of the megaphragma compound eye. Each ommatidium will be labelled and coloured
@@ -41,6 +41,7 @@ def hexplot(node_data: Dict, edge_data: Dict=None, ax: plt.Axes=None,
 
     if ax is None:
         ax = plt.gca()
+    ax.set_aspect('equal')
 
     pos = scale_distance_between(pos, scale_factor)
 
