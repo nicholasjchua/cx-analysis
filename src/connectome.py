@@ -48,10 +48,10 @@ class Connectome:
             out_links = pre_sk.out_links  # list containing a Dict for each synaptic link
             for l in out_links:
                 post_id = l.get('post_skel')
-                post_sk = self.skel_data.get(post_id)
+                post_sk = self.skel_data.get(post_id, None)
 
                 if post_sk is None:  # unidentified neurites (aka fragments)
-                    post_name = ''
+                    post_name = str(post_id)
                     post_type = 'UNKNOWN'
                     post_om = 'UNKNOWN'
                 else:

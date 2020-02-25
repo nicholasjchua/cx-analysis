@@ -45,7 +45,7 @@ mpl.rc('font', size=14)
 
 # +
 # Each ommatidia's onnection counts
-data_dir = '~/Data/200128_lamina'
+data_dir = '~/Data/2002_lamina'
 cxdf = pd.read_pickle(os.path.join(os.path.expanduser(data_dir), '200128_cxdf.pickle'))
 widedf = index_by_om(cxdf)  # pivot so that each row is an ommatidium with columns for each possible connection count
 
@@ -195,28 +195,10 @@ ax.plot(xticks, model.predict(xticks), label=f"R^2 = {model.score(x, y): .3f}")
 ax.scatter(x, y)
 ax.legend()
 
-
-
-# +
-rb_diameters = pd.read_csv("~/Data/lamina_additional_data/1911_am_rhab_diameters.csv", index_col=0)
-fig, ax = plt.subplots(1)
-
-x = np.asarray(total_r7)
-#y = np.asarray(rb_diameters.loc[widedf.index, 'distal_rb_d'] - rb_diameters.loc[widedf.index, 'prox_rb_d'])
-y = np.asarray(rb_diameters.loc[widedf.index])
-print(y.shape)
-print(x.shape)
-model = sm.OLS(x, y)
-res = model.fit()
-
-display(res.summary())
-
-xticks = np.arange(0, x.max()).reshape(-1, 1)
-sm.graphics.plot_fit(res, 0, ax=ax, figsize=[15, 15])
-#ax.plot(xticks, model.fit(xticks), label=f"R^2 = {model.score(x, y): .3f}")
-#ax.scatter(x, y)
-ax.legend()
-
 # -
+
+
+
+
 
 

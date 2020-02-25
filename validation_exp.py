@@ -45,12 +45,13 @@ plt.style.use('default')
 
 # +
 # Lamina connectome - synaptic contacts (use most recent fetch)
-lamina_links = pd.read_pickle('~/Data/200128_lamina/200128_linkdf.pickle')
+tp = '200205'
+lamina_links = pd.read_pickle(f'~/Data/{tp}_lamina/{tp}_linkdf.pickle')
 
 # Replicate connectome - synaptic contacts
 # Review timepoints: 200121, 200117, 200113, 200108, 191219
-timepoint = "200121"
-val_data_path = f"~/Data/{timepoint}_exp2/{timepoint}_linkdf.pickle"
+val_tp = "200121"
+val_data_path = f"~/Data/{val_tp}_exp2/{val_tp}_linkdf.pickle"
 val_links = pd.read_pickle(val_data_path)
 
 # +
@@ -102,14 +103,16 @@ for annot, row in df_val_all.iterrows():
 # 3. 'all': All (n_subtypes x n_subtypes) possible synaptic permutations
 
 # +
-inclusion = 'all'
+inclusion = 'mean_tresh'
 
 sig_thresh = 1.0  # not used for 'all'
 
 ######### 2. mean count must exceed threshold  
 if inclusion == 'mean_tresh':
-    df_lamina = df_lamina[df_lamina.mean() >= sig_thresh]
-    df_val = df_val[df_lamina.mean() >= sig_thresh]
+    sig_cx = (df_lamina_all.mean() >= sig_thresh).index
+    display(sig_cx)
+    df_lamina = df_lamina_all.loc[:, sig_cx]
+    df_val = df_val_all.loc[:, sig_cx]
     incl_method = f"Connections with mean contact count >= {sig_thresh} across all lamina cartridges"
 ######### 3. is ctype > thresh in every circuit
 elif inclusion == 'consistently_observed':
@@ -164,8 +167,8 @@ fig, ax = plt.subplots(2,1 , figsize=[30, 25], sharex=True)
 sns.boxplot(data = df_lamina[ctype_order].to_numpy(), ax=ax[0], orient='h')
 sns.boxplot(data = df_val[ctype_order].to_numpy(), ax=ax[1], orient='h')
 
-ax[0].set_title("Connection Counts (lamina data)\n" + incl_method + '\n' + timepoint)
-ax[1].set_title("Connection Counts (validation exp)\n" + incl_method + '\n' + timepoint)
+ax[0].set_title("Connection Counts (lamina data)\n" + incl_method + '\n' + tp)
+ax[1].set_title("Connection Counts (validation exp)\n" + incl_method + '\n' + val_tp)
 
 ax[0].set_yticklabels(ctype_order.to_numpy())
 ax[1].set_yticklabels(ctype_order.to_numpy())
@@ -212,12 +215,12 @@ val_fano = fano(df_val).dropna().T
 max_fano = max([lamina_fano.max(), val_fano.max()])
 interval = np.arange(0, max_fano + (10 - max_fano % 10), 0.25)  # round up to nearest 10
 
-sns.distplot(lamina_fano, bins = interval,
+sns.distplot(lamina_fano, bins = interval, 
              ax=ax, color=cm['lam'], label=f'Lamina Data (n={len(ommatidia)})')
-sns.distplot(val_fano, bins = interval,
+sns.distplot(val_fano, bins = interval, hist=False, rug=True,
              ax=ax, color=cm['val'], label='C2 Validation Tracing (n=4)')
 
-ax.set_title("Fano factor of connection counts")
+ax.set_title(f"Fano factor of connection counts\n{tp}")
 ax.set_xlabel("Fano factor")
 ax.set_ylabel("Percentage of connection types")
 ax.set_xlim([0, max_fano])
