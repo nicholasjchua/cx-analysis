@@ -98,6 +98,18 @@ def r7_inputs_handcount() -> Dict:
 
     return r7_inputs
 
+def ret_clusters() -> Dict:
+    """
+    DRA cluster based on connectivity data, VRA are R8vol > R7vol
+    :return ret_clust: Dict mapping each om to (dorsal, central, or ventral)
+    """
+    ret_clust = {'dra': ['A4', 'A5', 'B5', 'B6', 'C5', 'C6',
+                         'D6', 'D7', 'E6', 'E7'],
+                 'vra': ['A0', 'A1', 'A2', 'B0', 'B3', 'C3',
+                         'D2', 'D3', 'E4'],
+                 'v_trio': ['B1', 'C1', 'C2']}
+    return ret_clust
+
 def anastasia_clusters() -> Dict:
     """
     Based on Anastasia's clustering of ommatidia according to rhabdom measurements (190723)

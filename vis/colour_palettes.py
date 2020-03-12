@@ -17,3 +17,10 @@ def subtype_cm(fp: str="vis/lamina_palette.json", rgb: bool=False) -> Dict:
         else:
             return palette
 
+def spr_cm(rgb: bool=False) -> Dict:
+    p = subtype_cm(rgb=rgb)
+    return {'R1': p['R1R4'], 'R4': p['R1R4'],
+            'R2': p['R2R5'], 'R5': p['R2R5'],
+            'R3': p['R3R6'], 'R6': p['R3R6']}
+
+

@@ -2,20 +2,29 @@ from tqdm import tqdm
 from src.catmaid_queries import *
 from src.utils import *
 from src.skeleton import Skeleton
+from src.dataframe_tools import assemble_linkdf, assemble_cxdf
 from pandas import to_pickle
-
+"""
+connectome.py
+Connectome is a class representing a collection of neurons and the synaptic connections between them.
+A Connectome is initialized with a config file that details how the neurons should be categorized, the 
+number of neurons associated with each subtype or group, along with other options related to filtering
+or representing this data. Connectome will initialize a Skeleton object for each neuron, which perform
+the API requests to Catmaid. The Connectome object can be saved as a pkl file. This can also call 
+methods in dataframe_tools.py to assemble/save various summaries of connectivity data.   
+"""
 class Connectome:
 
     def __init__(self, cfg):
 
         self.cfg = cfg
         self.skel_data, \
-            self.ids_to_names, \
-            self.grouping \
-            = self.__fetch_skeletons()
+        self.ids_to_names, \
+        self.grouping = self.__fetch_skeletons()
         self.adj_mat = self.assemble_adj_mat()
-        self.linkdf = self.assemble_linkdf()
-        self.cxdf, self.inter, self.unknowns = self.assemble_cxdf()
+
+        self.linkdf, self.cxdf, \
+        self.inter, self.unknowns = self.assemble_dataframes()
 
     def print_adj_mat(self):
         # TODO get the stuff that formats and prints adjacency matrices from 'connectivity_analysis'
@@ -29,9 +38,21 @@ class Connectome:
             path = self.cfg.out_dir
         pack_pickle(self, path, "preprocessed")
 
-    def save_linkdf(self, path: str = ""):
+    def assemble_dataframes(self, save=True) -> Tuple:
+
+        link_df = assemble_linkdf(self)
+        cx_df, inter, unknowns = assemble_cxdf(self)
+
+        if save:
+            pack_pickle(link_df, self.out_dir)
+
+
+        return link_df, cx_df, inter, unknowns
+
+    def save_connectome_summary(self, path: str = ""):
         if path == "":
             path = self.cfg.out_dir
+
         pack_pickle(self.linkdf, path, "linkdf")
 
     def save_cxdf(self, path: str=""):
@@ -39,77 +60,7 @@ class Connectome:
             path = self.cfg.out_dir
         pack_pickle(self.cxdf, path, "cxdf")
 
-    def assemble_linkdf(self) -> pd.DataFrame:
-        df_rows = []
-        skel_data = self.skel_data
 
-        for pre_id, pre_sk in skel_data.items():
-            assert (type(pre_sk) is Skeleton)
-            out_links = pre_sk.out_links  # list containing a Dict for each synaptic link
-            for l in out_links:
-                post_id = l.get('post_skel')
-                post_sk = self.skel_data.get(post_id, None)
-
-                if post_sk is None:  # unidentified neurites (aka fragments)
-                    post_name = str(post_id)
-                    post_type = 'UNKNOWN'
-                    post_om = 'UNKNOWN'
-                else:
-                    post_name = post_sk.name
-                    post_type = post_sk.subtype
-                    post_om = post_sk.group
-                # TODO pd.Category this?
-                df_rows.append({'pre_neuron': pre_sk.name,
-                                'pre_type': pre_sk.subtype,
-                                'pre_om': pre_sk.group,
-                                'pre_skel': pre_id,
-                                'post_neuron': post_name,
-                                'post_type': post_type,
-                                'post_om': post_om,
-                                'post_skel': post_id,
-                                'link_id': l.get('link_id'),
-                                'cx_id': l.get('cx_id')})
-
-        df = pd.DataFrame(data=df_rows, columns=['link_id', 'cx_id',
-                                                 'pre_neuron', 'pre_om', 'pre_type', 'pre_skel',
-                                                 'post_neuron', 'post_om', 'post_type', 'post_skel'])
-        return df
-
-    def assemble_cxdf(self):
-        cx_types = [f"{pre}->{post}"
-                    for pre, post in itertools.product(self.cfg.subtypes, self.cfg.subtypes)]
-
-        om_list = sorted([str(k) for k in self.grouping.keys()])
-
-        counts = np.zeros((len(om_list), len(cx_types)), dtype=int)
-        inter = []
-        unknowns = []
-
-        for ind, row in self.linkdf.iterrows():
-            this_pre, this_post = (row['pre_type'], row['post_type'])
-            if this_pre.upper() == 'UNKNOWN' or this_post.upper() == 'UNKNOWN':
-                unknowns.append(row)
-            elif row['pre_om'] != row['post_om']:
-                inter.append(row)
-            else:
-                j = cx_types.index(f"{this_pre}->{this_post}")
-                i = om_list.index(row['pre_om'])
-                counts[i, j] += 1
-
-        om_order = np.array([[om] * len(cx_types) for om in om_list]).reshape(-1)
-        cx_order = np.tile(cx_types, len(om_list))
-        print(f"om_order: {om_order.shape}, cx_order: {cx_order.shape}")
-        pre_order, post_order = np.array([cx.split("->") for cx in cx_order]).T
-        print(f"pre_order: {pre_order.shape}, post_order: {post_order.shape}")
-
-        df = pd.DataFrame({'om': pd.Categorical(om_order),
-                           'cx_type': pd.Categorical(cx_order),
-                           'pre_type': pd.Categorical(pre_order),
-                           'post_type': pd.Categorical(post_order),
-                           'n_connect': np.ravel(counts)})
-        df.loc[df['n_connect'] < 0, 'n_connect'] = np.nan
-
-        return df, inter, unknowns
 
     def query_ids_by(self, by: str, key: str):
         """
@@ -122,6 +73,28 @@ class Connectome:
             return [skel_id for skel_id, data in self.skel_data.items() if data.subtype == key]
         else:
             raise Exception("Argument for 'by' needs to be either 'group' or 'subtype'")
+
+    def assemble_adj_mat(self):
+        id_mat = self.__get_id_mat()
+        groups = sorted(self.grouping.keys())
+        subtypes = sorted(self.cfg.subtypes)
+
+        adj_mat = np.zeros((len(groups), id_mat.shape[1], id_mat.shape[1]), dtype=int)
+
+        for i, g in enumerate(groups):
+            for j, pre_skel in enumerate(id_mat[i]):
+                if pre_skel == '-1':  # cartridges with missing neurons coded with -1 (only allowed for L4)
+                    #print(f'PRESKEL is -1')
+                    adj_mat[i, j, :] = -1
+                    continue
+
+                for k, post_skel in enumerate(id_mat[i]):
+                    if post_skel == '-1':
+                        adj_mat[i, j, k] = -1
+                    else:
+                        adj_mat[i, j, k] = self.__count_connections(pre_skel, post_skel)
+        print(adj_mat)
+        return adj_mat
 
     # Private Methods ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def __fetch_skeletons(self) -> Tuple:
@@ -198,27 +171,7 @@ class Connectome:
         ids = np.array(ids, dtype=str)
         return ids
 
-    def assemble_adj_mat(self):
-        id_mat = self.__get_id_mat()
-        groups = sorted(self.grouping.keys())
-        subtypes = sorted(self.cfg.subtypes)
 
-        adj_mat = np.zeros((len(groups), id_mat.shape[1], id_mat.shape[1]), dtype=int)
-
-        for i, g in enumerate(groups):
-            for j, pre_skel in enumerate(id_mat[i]):
-                if pre_skel == '-1':  # cartridges with missing neurons coded with -1 (only allowed for L4)
-                    #print(f'PRESKEL is -1')
-                    adj_mat[i, j, :] = -1
-                    continue
-
-                for k, post_skel in enumerate(id_mat[i]):
-                    if post_skel == '-1':
-                        adj_mat[i, j, k] = -1
-                    else:
-                        adj_mat[i, j, k] = self.__count_connections(pre_skel, post_skel)
-        print(adj_mat)
-        return adj_mat
 
     def __count_connections(self, pre_id: str, post_id: str) -> int:
 

@@ -37,8 +37,6 @@ from vis.colour_palettes import subtype_cm
 from vis.fig_tools import linear_cmap
 from vis.hex_lattice import hexplot
 
-plt.style.use('seaborn-darkgrid')
-
 import matplotlib as mpl
 mpl.rc('font', size=14)
 

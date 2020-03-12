@@ -24,7 +24,8 @@ import matplotlib as mpl
 mpl.rc('font', size=14)
 
 # +
-data_path = '~/Data/200131_lamina/200131_linkdf.pickle'
+tp = '200205'
+data_path = f'~/Data/{tp}_lamina/{tp}_linkdf.pickle'
 df = pd.read_pickle(data_path)
 
 df['post_type'].describe()
