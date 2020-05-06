@@ -3,14 +3,14 @@ import numpy as np
 from itertools import product
 from typing import Tuple
 
-from src.connectome import Connectome
+#import src.connectome as cxt
 from src.skeleton import Skeleton
 """
 dataframe_org.py
 Methods to extract and save summary data from a Connectome
 """
 
-def assemble_linkdf(C: Connectome) -> pd.DataFrame:
+def assemble_linkdf(C) -> pd.DataFrame:
     """
     link_df contains a row for each synaptic contact made between neurons in the Connectome
     :param C: Connectome
@@ -52,7 +52,7 @@ def assemble_linkdf(C: Connectome) -> pd.DataFrame:
     return df
 
 
-def assemble_cxdf(C: Connectome) -> Tuple:
+def assemble_cxdf(C, linkdf) -> Tuple:
     """
     Longform DataFrame that has a row for each group of neurons/each connection type
     requires link_df
@@ -68,7 +68,7 @@ def assemble_cxdf(C: Connectome) -> Tuple:
     inter = []
     unknowns = []
 
-    for ind, row in C.linkdf.iterrows():
+    for ind, row in linkdf.iterrows():
         this_pre, this_post = (row['pre_type'], row['post_type'])
         if this_pre.upper() == 'UNKNOWN' or this_post.upper() == 'UNKNOWN':
             unknowns.append(row)

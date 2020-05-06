@@ -41,15 +41,12 @@ class Connectome:
     def assemble_dataframes(self, save=True) -> Tuple:
 
         link_df = assemble_linkdf(self)
-        cx_df, inter, unknowns = assemble_cxdf(self)
-
-        if save:
-            pack_pickle(link_df, self.out_dir)
+        cx_df, inter, unknowns = assemble_cxdf(self, link_df)
 
 
         return link_df, cx_df, inter, unknowns
 
-    def save_connectome_summary(self, path: str = ""):
+    def save_linkdf(self, path: str = ""):
         if path == "":
             path = self.cfg.out_dir
 
