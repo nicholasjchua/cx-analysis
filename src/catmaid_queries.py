@@ -265,7 +265,13 @@ def cx_in_skel(skel_id: str, cfg: Config, r_nodes: List) -> Tuple:
         connector_data = tmp_connector_data
 
     return connector_data, link_data, list(r_connectors)
-
-
-
-
+    
+    
+def cx_coords(cx_id: str, cfg: Config) -> Tuple:
+    """
+    cx_coords
+    Method to get the (x, y, z) coordinates associated with a connector_id
+    """
+    op_path = f"/connectors/{cx_id}"
+    res_code, data = do_get(op_path, cfg)
+    return data['x'], data['y'], data['z']
