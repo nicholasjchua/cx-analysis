@@ -3,14 +3,14 @@ import numpy as np
 from itertools import product
 from typing import Tuple
 
-#import src.connectome as cxt
+from src.connectome import Connectome
 from src.skeleton import Skeleton
 """
 dataframe_org.py
 Methods to extract and save summary data from a Connectome
 """
 
-def assemble_linkdf(C) -> pd.DataFrame:
+def assemble_linkdf(C: Connectome) -> pd.DataFrame:
     """
     link_df contains a row for each synaptic contact made between neurons in the Connectome
     :param C: Connectome
@@ -52,10 +52,9 @@ def assemble_linkdf(C) -> pd.DataFrame:
     return df
 
 
-def assemble_cxdf(C, linkdf) -> Tuple:
+def assemble_cxdf(C: Connectome) -> Tuple:
     """
-    Longform DataFrame that has a row for each group of neurons/each connection type 
-    (CURRENTLY EXCLUDES INTEROM)
+    Longform DataFrame that has a row for each group of neurons/each connection type
     requires link_df
     :param C: Connectome
     :return cxdf, inter, unknowns:
@@ -69,7 +68,7 @@ def assemble_cxdf(C, linkdf) -> Tuple:
     inter = []
     unknowns = []
 
-    for ind, row in linkdf.iterrows():
+    for ind, row in C.linkdf.iterrows():
         this_pre, this_post = (row['pre_type'], row['post_type'])
         if this_pre.upper() == 'UNKNOWN' or this_post.upper() == 'UNKNOWN':
             unknowns.append(row)
@@ -94,46 +93,3 @@ def assemble_cxdf(C, linkdf) -> Tuple:
     df.loc[df['n_connect'] < 0, 'n_connect'] = np.nan
 
     return df, inter, unknowns
-
-def assemble_cxvectors(linkdf: pd.DataFrame, external: bool=True) -> pd.DataFrame:
-    """
-    assemble_cxvectors
-    Get a cxvectors dataframe from linkdf. Each row is an ommatidium, columns are each 
-    connection type found in linkdf. (like a bunch of flattened adj mats)
-    If external = True, will count connections made between ommatidia
-    (e.g. as 'eR1R4->L4' for R1R4 inputs external to the L4's home cartridge, and 'R1R4->eL4' in the home
-    cartridge of the R1R4). This way, connections between ommatidia are counted twice, once for the cartridge
-    receiving the input, and once for the cartridge giving the input to an external cell
-    """
-    # filter out orphan connections
-    linkdf = linkdf.loc[((linkdf['pre_om'] != 'UNKNOWN') & (linkdf['post_om'] != 'UNKNOWN'))]
-    oms = np.unique(linkdf['pre_om'])
-    subtypes = np.unique([*linkdf['pre_type'], *linkdf['post_type']])
-    ctypes = [f'{pre}->{post}' for pre, post in [p for p in product(subtypes, subtypes)]]
-    # initialize df with all counts = 0
-    df = pd.DataFrame(np.zeros((len(oms), len(ctypes)), dtype=int), index=oms, columns=ctypes)
-    
-    # if you want external connections to be listed in row of the pre neuron's home ommatidium, use
-    # groupby 'pre_om' (R1R4->eL4). If you want them listed in the post neuron's home ommatidium, use 
-    # groupby 'post_om' (eR1R4->L4)
-    for om, rows in linkdf.groupby('pre_om'):
-        for i, link in rows.iterrows():
-            
-            pre_type = link['pre_type']
-            post_type = link['post_type']
-            # local connections
-            if link['pre_om'] == link['post_om']:
-                df.loc[om, f'{pre_type}->{post_type}'] += 1
-            # external connections 
-            elif external:  # if pre_om != post_om
-                if f'{pre_type}->e{post_type}' not in df.columns:
-                    # make new ctype column when this external connection is first seen
-                    df[f'{pre_type}->e{post_type}'] = np.zeros(len(oms), dtype=int)
-                df.loc[om, f'{pre_type}->e{post_type}'] += 1
-            else:
-                continue # skip external connections if asked to
-                
-    return df    
-                        
-            
-    
