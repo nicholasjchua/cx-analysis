@@ -12,7 +12,9 @@ from tqdm import tqdm
 
 """
 fetch_lamina_connectome.py
-Fetch and organise data from CATMAID
+Fetch and organise data from CATMAID for the Megaphragma lamina connectomics study 2018-2020
+- Parse a config file describing the population of neurons to fetch, patterns to sort subtypes/groups of neurons, Catmaid access credentials, and more!
+- Outputs a pickle file containing intermediary data, along with summaries of connectivity data in .pkl Pandas DataFrames
 """
 
 def main():
