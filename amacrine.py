@@ -14,8 +14,8 @@
 # ---
 
 # # Amacrine
-# ### A 
-# - In Drosophila: amacrine gives glutamenergic (excitatory) positive feedback to R1-6 that is self-limiting due to HCN (hyperpolarization activated cylic nucleotide gated) channels that prevent saturation of PR signals in high-signal regimes.
+# Exploratory analysis specific to the lamina amacrine cell  
+# Note: amacrine is annotated as 'centri' in catmaid, so these terms may be used interchangeble. 
 
 # +
 import numpy as np
