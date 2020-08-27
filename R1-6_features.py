@@ -13,7 +13,8 @@
 #     name: wasp
 # ---
 
-# # Photoreceptor Diversity
+# # Short Photoreceptor Diversity 
+# Explore differences in the connectivity of short photoreceptor (R1-6) subtypes
 
 # +
 import os.path

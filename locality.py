@@ -13,10 +13,9 @@
 #     name: wasp
 # ---
 
-# # Local vs. global variance of circuits
+# # Local vs. global variance of connection counts
 # - Are neighboring cartridges more similar to each other in connection counts than non-neighboring cartridges?
 # - Does a circuit's connection counts vary stochastically across the eye, or are certain connection counts dependent on the retinotopic position of the lamina cartridge?
-#
 # - By comparing the connection counts of all neighboring trios to randomly sampled non-neighboring trios, we can show the extent to which our methodology succeeds at capturing retinotopic variability that may exist in different regions of the eye. 
 
 # +

@@ -13,7 +13,8 @@
 #     name: python3
 # ---
 
-# # Clustering ommatidia by connections
+# # Clustering Ommatidia by Lamina Connections
+# - Clusters every ommatidia according to the vector of all their (home) connection counts
 
 # +
 import numpy as np

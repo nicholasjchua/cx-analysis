@@ -13,12 +13,10 @@
 #     name: wasp
 # ---
 
-# # Errors and Outliers
-# We screen our connectome for the following: 
-# 1. Number of inputs from homologous pairs of short photoreceptors is relatively uniform (e.g. R1->L2 ~= R4->L2)
-# 2. Number of inputs from R1R4 is typically very close to that of R3R6 (e.g. R1R4->L1 ~= R3R6->L1)
-# 3. 
-# - Identifying discrepencies between cartridges that could be the result of reconstruction error
+# # R1-6 output characteristics
+# WORK IN PROGRESS  
+# Explore differences in output characteristics of the different short photoreceptor subtypes
+#
 
 # +
 import numpy as np
@@ -182,14 +180,6 @@ ax[3].set_ylabel('R3R6')
 #plot_lin_fit(df_lamina['R1R4->LMC_4'],df_lamina['R3R6->LMC_4'], ax, plot_kwargs={'color': 'r'}, scatter_kwargs={'color': 'r'})
 plt.show()
 # -
-
-
-
-# +
-
-sns.jointplot(x='R1R4->LMC_1',y='R3R6->LMC_1', data=df_lamina)
-# -
-
 sns.jointplot(df_lamina['R1R4->LMC_2'],df_lamina['R3R6->LMC_2'], color='k')
 
 sns.jointplot(df_lamina['R1R4->LMC_3'],df_lamina['R3R6->LMC_3'], color='k')
@@ -364,31 +354,5 @@ low_means = df_lamina.mean()[df_lamina.mean() < 1.0]
 display(df_lamina.mean()[df_lamina.mean() < 1.0].sort_values(ascending=False))
 # -
 
-# ## Source of methodological error
-#
-# ### Connectome reconstruction
-# 1. Labelling of synaptic contacts  
-#     i. Identification of presynaptic terminals   
-#     ii. Identification of postsynaptic partners   
-# 2. Skeletal morphology:  
-#    i. Misattribution error  
-#    ii. Arbor fragments (failure to attribute an arbor to an identified neuron) 
-# 3. Misc.  
-#    i. Subtype categorisation/ambiguity  
-#    ii. Inhomogeneity of image dataset  
-
-# +
-unknown_partners = dict.fromkeys(ommatidia)
-total_contacts = dict.fromkeys(ommatidia)
-total_tbars = dict.fromkeys(ommatidia)
-for om, rows in lamina_links.groupby('pre_om'):
-
-    unknown_partners[om] = (rows['post_type'] == 'UNKNOWN').sum()
-    total_contacts[om] = len(rows)
-    total_tbars[om] = len(rows['cx_id'].unique())
-    
-print({unknown_partners})
-
-# -
 
 

@@ -14,12 +14,11 @@
 # ---
 
 # # Dorsal Rim Specialisation
+# - Visualizes and performs hypothesis tests on certain connection counts and optical parameters for a group of ommatidia in the dorsal rim area (DRA) and a group outside the dorsal rim area (Non-DRA or NDRA) 
 
 # +
-# # %load_ext autoreload
-# # %autoreload 2
-
-# +
+# %load_ext autoreload
+# %autoreload 2
 import os.path
 import numpy as np
 import pandas as pd
