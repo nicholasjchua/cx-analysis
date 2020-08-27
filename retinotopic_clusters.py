@@ -104,14 +104,16 @@ region_list = list(region_color.values())
 # -
 
 display(len(cxvecs.T))
-sns.clustermap(cxvecs.T, row_cluster=False, col_colors=region_list, yticklabels=cxvecs.columns, metric='cosine',
-              cmap='Reds')
+clus = sns.clustermap(cxvecs.T, row_cluster=False, col_colors=region_list, yticklabels=cxvecs.columns, metric='cosine',
+                      cmap='Reds')
+#clus.savefig("/mnt/home/nchua/Dropbox/200610_ret-clus.svg")
 
 homedf = cxvecs.loc[:, [i for i in cxvecs.columns if ('LMC_4' not in i) and ('eLMC_2' not in i)]]
 display(len(homedf.T))
 cbar_kws = {'label': 'Connection Counts'}
-sns.clustermap(homedf.T, row_cluster=False, col_colors=region_list, figsize=[12,12], cmap='Reds',
-              yticklabels=homedf.T.index, metric='cosine', cbar_kws=cbar_kws)
+clus = sns.clustermap(homedf.T, row_cluster=False, col_colors=region_list, figsize=[12,12], cmap='Reds',
+                      yticklabels=homedf.T.index, metric='cosine', cbar_kws=cbar_kws)
+clus.savefig("/mnt/home/nchua/Dropbox/200610_ret-clus.svg")
 
 # +
 om_corr = cxvecs.T.corr()
@@ -121,10 +123,13 @@ sns.clustermap(om_corr, metric='cosine',
                col_colors=region_list,linewidth=0.5, cmap='YlGnBu', vmin=0.75, vmax=1)
 # sns.clustermap(om_corr, xticklabels=om_corr.columns, yticklabels=om_corr.columns, metric='cosine',
 #                row_colors=region_color,linewidth=0.5)
-# -
 
+# +
 fig, ax = plt.subplots(1, figsize=[8, 12])
 hexplot(node_data={k: {'colour': v} for k, v in region_color.items()}, ax=ax)
+
+fig.savefig(fig.savefig("/mnt/home/nchua/Dropbox/200610_clus-assign.svg"))
+# -
 
 
 

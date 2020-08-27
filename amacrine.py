@@ -31,7 +31,7 @@ from vis.colour_palettes import subtype_cm
 from vis.fig_tools import linear_cmap
 
 # +
-tp = '200218'
+tp = '200507'
 data_path = f"~/Data/{tp}_lamina/{tp}"
 cx = pd.read_pickle(data_path + "_cxdf.pickle")
 links = pd.read_pickle(data_path + "_linkdf.pickle")
@@ -46,7 +46,7 @@ all_ctype_labels = [f"{pre}->{post}" for pre, post in all_ctypes]
 adj_mn = pd.pivot_table(cx, values='n_connect', index='pre_type', columns='post_type')
 adj_var = pd.pivot_table(cx, values='n_connect', index='pre_type', columns='post_type', aggfunc=np.nanvar)
 display(f"Mean adjacency matrix across {len(ommatidia)} circuits")
-display(adj_mn.astype(int))
+display(adj_mn.astype(int).filter(axis=0, like='centri'))
 
 adj_mats = dict.fromkeys(ommatidia)  # For each ommatidium
 for o in ommatidia:

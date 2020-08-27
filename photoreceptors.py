@@ -22,6 +22,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import mannwhitneyu
+import statsmodels.api as sm
 
 from dataframe_org import extract_connector_table
 from src.cartridge_metadata import ret_clusters
@@ -80,6 +81,9 @@ ctx = pd.DataFrame(n_contacts).fillna(0).astype(int).T
 
 terms.index.name = 'om'
 ctx.index.name = 'om'
+# -
+
+
 
 # +
 # Longform dataframes for seaborn functions
@@ -92,43 +96,16 @@ l_rbfrac = pd.melt(rb_frac.reset_index(), id_vars='om', value_vars=rb_frac.colum
 l_ctx = pd.melt(ctx.reset_index(), id_vars='om', value_vars=ctx.columns, var_name='subtype', value_name='syn_count')
 l_rb = pd.melt(rb.reset_index(), id_vars='om', value_vars=rb.columns,  var_name='subtype', value_name='vol')
 
-combined = pd.concat([l_rbfrac, l_ctx['syn_count']], axis=1)
-# combined = pd.concat([l_rbfrac, l_ctx['syn_count']], axis=1)
+#combined = pd.concat([l_rbfrac, l_terms['syn_count']], axis=1)
+combined = pd.concat([l_rb, l_ctx['syn_count']], axis=1)
 #combined = pd.concat([l_rb, l_ctx['syn_count']], axis=1)
 
 # -
 
 
+combined
+
 # ## Differences between short photoreceptor subtypes 
-
-# +
-data = combined.loc[[i for i, row in combined.iterrows() if row['subtype'] not in ['R7', 'R7p', 'R8']]]
-xmax = data['vol'].max()
-ymax = data['syn_count'].max()
-
-g = sns.JointGrid(x="vol", y="syn_count", data=data, height=8,
-                  xlim=[0, xmax + (xmax*0.1)], ylim=[0, ymax + (ymax*0.1)])
-
-
-spr_pairs = (('R1', 'R4'), ('R2' , 'R5'), ('R3', 'R6'))
-pt = ('o', 'x', '+')
-
-for i, p in enumerate(spr_pairs):
-    rows = (data['subtype'] == p[0]) | (data['subtype'] == p[1])
-    
-    c = cm[p[0]+p[1]]
-    
-    g.ax_joint.scatter(x=data.loc[rows, 'vol'], y=data.loc[rows, 'syn_count'], label=f'{p[0]}/{p[1]}', marker=pt[i], color=c)
-    g.ax_joint.legend()
-    
-    sns.kdeplot(data.loc[rows, 'vol'], legend=False, ax=g.ax_marg_x, color=c)
-    sns.kdeplot(data.loc[rows, 'syn_count'], legend=False, ax=g.ax_marg_y, vertical=True, color=c)
-    
-g.ax_joint.set_ylabel('Number of postsynaptic contacts')
-g.ax_joint.set_xlabel("Fraction of fused rhabdom volume")
-#g.ax_joint.set_xlabel("Rhabdomere volume (\u03BC" + "$m^3$)")
-
-
 
 # +
 
@@ -142,22 +119,35 @@ g = sns.JointGrid(x="vol", y="syn_count", data=data, height=8,
 
 
 spr_pairs = (('R1', 'R4'), ('R2' , 'R5'), ('R3', 'R6'))
-pt = ('o', 'x', '+')
+pt = ('o', '+', '^')
 
 for i, p in enumerate(spr_pairs):
     rows = (data['subtype'] == p[0]) | (data['subtype'] == p[1])
     
     c = cm[p[0]+p[1]]
     
-    g.ax_joint.scatter(x=data.loc[rows, 'vol'], y=data.loc[rows, 'syn_count'], label=f'{p[0]}/{p[1]}', marker=pt[i], color=c)
-    g.ax_joint.legend()
+    g.ax_joint.scatter(x=data.loc[rows, 'vol'], y=data.loc[rows, 'syn_count'], label=f'{p[0]}/{p[1]}', marker=pt[i], color=c, s=40)
+    g.ax_joint.legend(loc='upper left')
     
     sns.kdeplot(data.loc[rows, 'vol'], legend=False, ax=g.ax_marg_x, color=c)
     sns.kdeplot(data.loc[rows, 'syn_count'], legend=False, ax=g.ax_marg_y, vertical=True, color=c)
     
-g.ax_joint.set_ylabel('Number of postsynaptic contacts')
+g.ax_joint.set_ylabel('Number of presynaptic contacts')
 g.ax_joint.set_xlabel("Rhabdomere volume (\u03BC" + "$m^3$)")
 #g.ax_joint.set_xlabel("Rhabdomere volume (\u03BC" + "$m^3$)")
+g.savefig("/mnt/home/nchua/Dropbox/200609_pr-v-cx.svg")
+# -
+
+
+
+# +
+X = data['vol']
+Y = data['syn_count']
+
+model = sm.OLS(Y, X)
+results = model.fit()
+
+display(results.summary())
 # -
 
 # ### Hypothesis test (number of outputs) 
@@ -193,148 +183,41 @@ else:
 # ## Variability of long photoreceptor volumes
 
 # +
-# Rhabdomere volume
-data = rb.filter(items=['R7', 'R8', 'R7p'], axis=1)
+# # Rhabdomere volume
+# data = rb.filter(items=['R7', 'R8', 'R7p'], axis=1)
 
-fig, ax = plt.subplots(1, figsize=[10, 15])
-for i, row in data.iterrows():
-    if str(i) in ret_clust['dra']:
-        l = '--'
-    #elif str(i) in [*ret_clust['v_trio'], *ret_clust['vra']]:
-#     elif str(i) in ret_clust['vra']:
-#         l = '-.'
-    else:
-        l = '-'
-    ax.plot([0, 1, 2], row[['R7', 'R8', 'R7p']].tolist(), color='dimgray', linestyle=l)
-    ax.set_xticklabels(['', 'R7', '', '', '', 'R8', '', '', '', 'R7p'])
+# fig, ax = plt.subplots(1, figsize=[10, 15])
+# for i, row in data.iterrows():
+#     if str(i) in ret_clust['dra']:
+#         l = '--'
+#     #elif str(i) in [*ret_clust['v_trio'], *ret_clust['vra']]:
+# #     elif str(i) in ret_clust['vra']:
+# #         l = '-.'
+#     else:
+#         l = '-'
+#     ax.plot([0, 1, 2], row[['R7', 'R8', 'R7p']].tolist(), color='dimgray', linestyle=l)
+#     ax.set_xticklabels(['', 'R7', '', '', '', 'R8', '', '', '', 'R7p'])
     
-m = ['x', 'o', '+']
-for i, rt in enumerate(['R7', 'R8', 'R7p']):
-    data = rb[rt]
-    ax.scatter([i]*len(data), data, marker=m[i], color=cm[rt], label=f'{rt}')
-ax.spines['right'].set_visible(False)
-ax.spines['top'].set_visible(False)   
-ax.set_xlabel('Long photoreceptor subtype')
-ax.set_ylabel("Rhabdomere volume (\u03BC" + "$m^3$)")
+# m = ['x', 'o', '+']
+# for i, rt in enumerate(['R7', 'R8', 'R7p']):
+#     data = rb[rt]
+#     ax.scatter([i]*len(data), data, marker=m[i], color=cm[rt], label=f'{rt}')
+# ax.spines['right'].set_visible(False)
+# ax.spines['top'].set_visible(False)   
+# ax.set_xlabel('Long photoreceptor subtype')
+# ax.set_ylabel("Rhabdomere volume (\u03BC" + "$m^3$)")
 
-lines = [Line2D([0], [0], color='dimgray', linestyle='--'),
-        Line2D([0], [0], color='dimgray', linestyle='-')]
+# lines = [Line2D([0], [0], color='dimgray', linestyle='--'),
+#         Line2D([0], [0], color='dimgray', linestyle='-')]
 
-point_leg = ax.legend()
-line_leg = ax.legend(lines, ['DRA ommatidia', 'Non-DRA ommatidia'], loc=[0.015, 0.85]) 
-ax.add_artist(point_leg)
-plt.show()
+# point_leg = ax.legend()
+# line_leg = ax.legend(lines, ['DRA ommatidia', 'Non-DRA ommatidia'], loc=[0.015, 0.83]) 
+# ax.add_artist(point_leg)
+# plt.show()
 
-# +
-# Rhabdomere volume
-data = rb.filter(items=['R7', 'R8', 'R7p'], axis=1)
-
-fig, ax = plt.subplots(1, figsize=[10, 15])
-for i, row in data.iterrows():
-    if str(i) in ret_clust['dra']:
-        continue
-    elif row['R7'] < row['R8']*0.8:
-        l = '-.'
-    else:
-        l = '-'
-    ax.plot([0, 1, 2], row[['R7', 'R8', 'R7p']].tolist(), color='dimgray', linestyle=l)
-    ax.set_xticklabels(['', 'R7', '', '', '', 'R8', '', '', '', 'R7p'])
-    
-m = ['x', 'o', '+']
-for i, rt in enumerate(['R7', 'R8', 'R7p']):
-    data = rb[rt]
-    ax.scatter([i]*len(data), data, marker=m[i], color=cm[rt], label=f'{rt}')
-ax.spines['right'].set_visible(False)
-ax.spines['top'].set_visible(False)   
-ax.set_xlabel('Long photoreceptor subtype')
-ax.set_ylabel("Rhabdomere volume (\u03BC" + "$m^3$)")
-
-lines = [Line2D([0], [0], color='dimgray', linestyle='--'),
-        Line2D([0], [0], color='dimgray', linestyle='-')]
-
-point_leg = ax.legend()
-line_leg = ax.legend(lines, ['DRA ommatidia', 'Non-DRA ommatidia'], loc=[0.015, 0.85]) 
-ax.add_artist(point_leg)
-plt.show()
-
-# +
-# Fraction of rhabdom volume
-data = rb_frac.filter(items=['R7', 'R8', 'R7p'], axis=1)
-
-fig, ax = plt.subplots(1, figsize=[10, 15])
-for i, row in data.iterrows():
-    
-    if str(i) in ret_clust['dra']:
-        l = '--'
-#     elif str(i) in ret_clust['vra']:
-#         l = '-.'
-    else:
-        l = '-'
-        
-    ax.plot([0, 1, 2], row[['R7', 'R8', 'R7p']].tolist(), color='dimgray', linestyle=l)
-    ax.set_xticklabels(['', 'R7', '', '', '', 'R8', '', '', '', 'R7p'])
-    
-    if row['R7'] < row['R8']:
-        print(f"{i} R7frac: {row['R7']: .2f} R8frac: {row['R8']: .2f}")
-    
-m = ['x', 'o', '+']
-for i, rt in enumerate(['R7', 'R8', 'R7p']):
-    data = rb_frac[rt]
-    ax.scatter([i]*len(data), data, marker=m[i], color=cm[rt], label=f'{rt}')
-ax.spines['right'].set_visible(False)
-ax.spines['top'].set_visible(False)   
-ax.set_xlabel('Long photoreceptor subtype')
-ax.set_ylabel("Fraction of rhabdom volume")
-
-lines = [Line2D([0], [0], color='dimgray', linestyle='--'),
-        Line2D([0], [0], color='dimgray', linestyle='-')]
-
-point_leg = ax.legend()
-line_leg = ax.legend(lines, ['DRA ommatidia', 'Non-DRA ommatidia'], loc=[0.015, 0.85]) 
-ax.add_artist(point_leg)
-    
-
-
-# +
-# Fraction of rhabdom volume
-data = rb_frac.filter(items=['R7', 'R8', 'R7p'], axis=1)
-
-fig, ax = plt.subplots(1, figsize=[10, 15])
-for i, row in data.iterrows():
-    
-    if str(i) in ret_clust['v_trio']:
-        l = '--'
-    elif str(i) in ret_clust['vra']:
-        l = '-'
-    elif str(i) in ret_clust['dra']:
-        continue
-    else:
-        l = '-.'
-        
-    ax.plot([0, 1, 2], row[['R7', 'R8', 'R7p']].tolist(), color='dimgray', linestyle=l)
-    ax.set_xticklabels(['', 'R7', '', '', '', 'R8', '', '', '', 'R7p'])
-    
-    if row['R7'] < row['R8']:
-        print(f"{i} R7frac: {row['R7']} R8frac: {row['R8']:.f02}")
-    
-m = ['x', 'o', '+']
-for i, rt in enumerate(['R7', 'R8', 'R7p']):
-    data = rb_frac[rt]
-    ax.scatter([i]*len(data), data, marker=m[i], color=cm[rt], label=f'{rt}')
-ax.spines['right'].set_visible(False)
-ax.spines['top'].set_visible(False)   
-ax.set_xlabel('Long photoreceptor subtype')
-ax.set_ylabel("Fraction of rhabdom volume")
-
-lines = [Line2D([0], [0], color='dimgray', linestyle='--'),
-        Line2D([0], [0], color='dimgray', linestyle='-')]
-
-point_leg = ax.legend()
-line_leg = ax.legend(lines, ['DRA ommatidia', 'Non-DRA ommatidia'], loc=[0.015, 0.85]) 
-ax.add_artist(point_leg)
-
-
+# fig.savefig("/mnt/home/nchua/Dropbox/200610_lpr-v-cx.svg")
 # -
+
 
 
 

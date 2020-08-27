@@ -38,8 +38,8 @@ import matplotlib as mpl
 mpl.rc('font', size=14)
 
 # +
-tp = '200218'
-lamina_links = pd.read_pickle(f'~/Data/200131_lamina/{tp}_linkdf.pickle')
+tp = '200507'
+lamina_links = pd.read_pickle(f'~/Data/{tp}_lamina/{tp}_linkdf.pickle')
 subtypes = np.unique([*lamina_links["pre_type"], *lamina_links["post_type"]])
 
 all_ctypes = [p for p in itertools.product(subtypes, subtypes)]  
@@ -84,11 +84,52 @@ df_outputs = pd.DataFrame(index=ommatidia, columns=svfs)
 for om in ommatidia:
     for s in svfs:
         neuron_name = f"om{om}_{s}"
+        if om == 'C2':
+            neuron_name += '_nc'
         links = lamina_links.loc[lamina_links['pre_neuron'] == neuron_name]
         c_ids = links['cx_id'].unique()
         df_presites.loc[om, s] = len(c_ids)
         df_outputs.loc[om, s] = len(links)
 
+
+df_presites
+
+# +
+av_multi = df_outputs/df_presites
+r1r4_m = [*av_multi['R1'].to_list(), *av_multi['R4'].to_list()]
+r2r5_m = [*av_multi['R2'].to_list(), *av_multi['R5'].to_list()]
+r3r6_m = [*av_multi['R3'].to_list(), *av_multi['R6'].to_list()]
+
+r1r4_ntb = [*df_presites['R1'].to_list(), *df_presites['R4'].to_list()]
+r2r5_ntb = [*df_presites['R2'].to_list(), *df_presites['R5'].to_list()]
+r3r6_ntb = [*df_presites['R3'].to_list(), *df_presites['R6'].to_list()]
+# -
+
+print(r2r5_m)
+
+# +
+fig, ax = plt.subplots(1, 2, figsize=[8, 4])
+labels = ['R1R4', 'R2R5', 'R3R6']
+
+tb_data = [r1r4_ntb, r2r5_ntb, r3r6_ntb]
+m_data = [r1r4_m, r2r5_m, r3r6_m]
+
+bp0 = ax[0].boxplot(tb_data, patch_artist=True, labels=labels)
+bp1 = ax[1].boxplot(m_data, patch_artist=True, labels=labels)
+ax[0].set_title('Photoreceptor T-bar count')
+ax[1].set_title('Photoreceptor T-bar multiplicity')
+
+colors = ["#27787c", "#0dbc8b", "#7b9e00"]
+for bplot in (bp0, bp1):
+    for patch, c in zip(bplot['boxes'], colors):
+        patch.set_facecolor(c)
+fig.savefig("/mnt/home/nchua/Dropbox/200610_pr-count-multi.svg")
+# sns.distplot(r1r4_m, ax=ax, label='R1R4', kde=False, hist_kws={'fill':False, 'color':"#27787c"})
+# sns.distplot(r2r5_m, ax=ax, label='R2R5', kde=False, color="#0dbc8b")
+# sns.distplot(r3r6_m, ax=ax, label='R3R6', kde=False, color="#7b9e00")
+
+
+# -
 
 fig, ax = plt.subplots(1, 3, sharex=True, sharey=True, figsize=[40, 20])
 plot_lin_fit(df_presites['R1'], df_presites['R4'], ax=ax[0])

@@ -133,19 +133,23 @@ s, p = mannwhitneyu(local['mean_fano'], non_local['mean_fano'], alternative='les
 print(f"Test statistic: {s}, p-value: {p: .6f}")
 
 # +
-fig, ax = plt.subplots(1, figsize=[10, 10])
+fig, ax = plt.subplots(1, figsize=[8, 8])
 
-sns.distplot(local['mean_fano'], bins=np.linspace(0,6,64), rug=True, hist=False,
-             ax=ax, label=f'Neighboring subgroups (n={len(local_trios)})')
-sns.distplot(non_local['mean_fano'], bins=np.linspace(0,6,64), 
-             ax=ax, label=f'Non-neighboring subgroups (n={len(non_local_trios)})')
+ax.hist(non_local['mean_fano'], density=True, fc=(73/255, 75/255, 107/255, 0.5), 
+        label=f'Non-neighboring samples (n={len(non_local_trios)})', bins=np.linspace(0,6,64))
+ax.hist(local['mean_fano'], label=f'Neighboring samples (n={len(local_trios)})', density=True, 
+        fc=(255/255, 182/255, 46/255, 0.5))
+
+             #ax=ax, label=f'Non-neighboring samples (n={len(non_local_trios)})')
 ax.spines['right'].set_visible(False)
 ax.spines['top'].set_visible(False)
-ax.set_title(f'Average fano factor of circuit trios')
-ax.set_xlabel("Fano-factor of trios's connection counts (averaged across connection types)")
+ax.set_title(f'Fano factor of neighboring ommatidia trios')
+ax.set_xlabel("Fano-factor of connection counts between trios \n(averaged across all connection types)")
 ax.set_ylabel("% trios")
 
 ax.legend()
+
+fig.savefig("/mnt/home/nchua/Dropbox/200614_locality_density.pdf")
 
 # +
 fig, ax = plt.subplots(1, figsize=[15, 15])

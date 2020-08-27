@@ -30,9 +30,11 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import seaborn as sns
 import itertools
 from sklearn.linear_model import LinearRegression
+from scipy.stats import mannwhitneyu
 
 from src.fig_utils import hex_to_rgb
 
@@ -40,12 +42,13 @@ from IPython.display import display, Math, Latex
 # -
 
 plt.rcParams['lines.linewidth'] = 2
+mpl.rc('font', size=14)
 plt.style.use('default')
 
 
 # +
 # Lamina connectome - synaptic contacts (use most recent fetch)
-tp = '200205'
+tp = '200507'
 lamina_links = pd.read_pickle(f'~/Data/{tp}_lamina/{tp}_linkdf.pickle')
 
 # Replicate connectome - synaptic contacts
@@ -66,8 +69,8 @@ ommatidia = np.unique(lamina_links['pre_om'])
 all_ctypes = [p for p in itertools.product(subtypes, subtypes)]  
 all_ctype_labels = [f"{pre}->{post}" for pre, post in all_ctypes]
 # Colors to distinguish data from the connectome (grey) and data from the validation experiment (red)
-cm = {'lam': "#383a3f", 
-     'val': "#bf3b46"}
+cm = {'val': "#383a3f", 
+     'lam': "#bf3b46"}
 
 # ### Preprocess connectivity data
 # - Transform to a wide dataframe with each connection type as a column 
@@ -208,23 +211,70 @@ def coef_var(df):
 # Outliers are examined during a step of peer-review. When a connection count is much larger than the average or if a previously unobserved connection type is present, it is almost always due to a mistake in the skeletal reconstruction. 
 
 # +
-fig, ax = plt.subplots(1, figsize=[15, 15])
+fig, ax = plt.subplots(1, figsize=[10, 10])
 lamina_fano = fano(df_lamina).dropna().T
 val_fano = fano(df_val).dropna().T
+
+display(len(lamina_fano))
+display(len(val_fano))
 
 max_fano = max([lamina_fano.max(), val_fano.max()])
 interval = np.arange(0, max_fano + (10 - max_fano % 10), 0.25)  # round up to nearest 10
 
-sns.distplot(lamina_fano, bins = interval, 
-             ax=ax, color=cm['lam'], label=f'Lamina Data (n={len(ommatidia)})')
-sns.distplot(val_fano, bins = interval, hist=False, rug=True,
+sns.distplot(val_fano, bins = interval, kde=False, norm_hist=True,
              ax=ax, color=cm['val'], label='C2 Validation Tracing (n=4)')
+sns.distplot(lamina_fano, bins = interval, kde=False, norm_hist=True,
+             ax=ax, color=cm['lam'], label=f'Lamina Data (n={len(ommatidia)})')
+
+
+ax.spines['right'].set_visible(False)
+ax.spines['top'].set_visible(False)
+
+ax.set_title(f"Fano factor of connection counts\n")
+ax.set_xlabel("Fano factor")
+ax.set_ylabel("Percentage of connection types")
+ax.set_xlim([0, max_fano + 1])
+ax.legend()
+
+fig.savefig('/mnt/home/nchua/Dropbox/200615_valfano_95v57.pdf')
+# -
+
+s, p = mannwhitneyu(val_fano, lamina_fano, alternative='less')
+print("###### RESULTS ######")
+print(f"Test statistic: {s}, p-value: {p: .10f}")
+if p > 0.001:
+    print("Fail to reject null")
+else:
+    print("Reject null: fano factor of validation connection counts is smaller")
+
+# +
+fig, ax = plt.subplots(1, figsize=[10, 10])
+lamina_fano = fano(df_lamina).dropna().T
+val_fano = fano(df_val).dropna().T
+
+#lamina_fano = lamina_fano[val_fano.index]
+
+display(len(lamina_fano))
+display(len(val_fano))
+
+max_fano = max([lamina_fano.max(), val_fano.max()])
+interval = np.arange(0, max_fano + (10 - max_fano % 10), 0.25)  # round up to nearest 10
+
+sns.distplot(lamina_fano, bins = interval, kde=False,
+             ax=ax, color=cm['lam'], label=f'Lamina Data (n={len(ommatidia)})')
+sns.distplot(val_fano, bins = interval, kde=False,
+             ax=ax, color=cm['val'], label='C2 Validation Tracing (n=4)')
+
+ax.spines['right'].set_visible(False)
+ax.spines['top'].set_visible(False)
 
 ax.set_title(f"Fano factor of connection counts\n{tp}")
 ax.set_xlabel("Fano factor")
-ax.set_ylabel("Percentage of connection types")
+ax.set_ylabel("Number of connection types")
 ax.set_xlim([0, max_fano])
 ax.legend()
+
+fig.savefig('/mnt/home/nchua/Dropbox/200614_valfano_57v95_counts.pdf')
 
 # +
 lamina_var = df_lamina.std().dropna().T ** 2
@@ -282,10 +332,12 @@ ax.plot(xticks, xticks, '--', label='Poisson noise (x=y)')
 
 ax.legend()
 ax.set_title("Relationship of each connection type's mean and variance\n" + 
-            f"Val timepoint: {timepoint}\n"
+            f"FETCH TIMEPOINT: {tp}\n"
             f"{incl_method}, n={len(sig_cts)}")
 ax.set_xlabel('Mean Count')
 ax.set_ylabel('Variance')
+
+fig.savefig('/mnt/home/nchua/Dropbox/200611_validation.pdf')
 # -
 fano(df_val).T
 
