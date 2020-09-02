@@ -8,9 +8,9 @@
 #       format_version: '1.4'
 #       jupytext_version: 1.2.4
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: wasp
 #     language: python
-#     name: python3
+#     name: wasp
 # ---
 
 # # Microvilli orientation
@@ -21,17 +21,105 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 from scipy.stats import mannwhitneyu
 
 # +
-r7 = pd.read_excel('~/Data/microvilli angel.xlsx', sheet_name='R7_raw', index_col=0)
-r7p = pd.read_excel('~/Data/microvilli angel.xlsx', sheet_name="R7'_raw", index_col=0)
-# present data as deviation from first measurement
-r7_dev = (r7 - r7.loc[1])
-r7p_dev = (r7p - r7p.loc[1])
+xl_dir = '~/Data/200824_microvilli.xlsx'
 
+full_df = pd.read_excel(xl_dir, sheet_name='microvilli angle', header=None, index_col=None)
+
+# +
+twist = []
+# TODO: extract other data
+om_df = []
+cell_df = []
+
+for i in range(0, 29):  # each table in the sheet corresponds to an ommatidia
+    # excel has 16 rows of each ommatidia, but only 13 have data
+    this_range = full_df.loc[i * 16: i * 16 + 13].reset_index(drop=True)
+    this_om = this_range.iloc[0, 0]
+    
+    if this_om == 'C5':  # C5 has 11 rows 
+        this_range = full_df.loc[i * 16: i * 16 + 14].reset_index(drop=True)
+        rows = 11
+    else:
+        rows = 10
+    z_st_cols = this_range.iloc[3, 13:]
+
+    assert(len(this_om) == 2)
+    assert(len(z_st_cols) == 9)
+    
+    for ii, this_st in this_range.iloc[0, 4:13].items():  # subtypes 
+        #display(i, subtype)
+        if '(' in this_st:  # some have the old subtype nomenclature in ()
+            this_st = this_st.split('(')[0]
+        this_st = this_st.strip().upper()
+        # Should R7' be changed to R7p? 
+
+        z_col = z_st_cols[z_st_cols == this_st.lower()].index[0]
+        twist.append(pd.DataFrame({'om': [this_om]*rows, 
+                                     'subtype': [this_st]*rows, 
+                                     'z-index': this_range.iloc[4:, z_col], 
+                                     'angle': this_range.iloc[4:, ii]}))
+        
+twist_df = pd.concat(twist, ignore_index=True)
+twist_df = twist_df.astype({'z-index': float,
+                           'angle': float})
+#display(twist_df.loc[twist_df.om == 'C5'], twist_df.tail(30))
+# -
+
+
+all_om = sorted(twist_df['om'].unique())
 dra_om = ['A4', 'A5', 'B5', 'B6', 'C5', 'C6', 'D6', 'D7', 'E6', 'E7']
-ndra_om = [str(o) for o in r7.columns if o not in dra_om]
+ndra_om = [str(o) for o in all_om if o not in dra_om]
+subtypes = sorted(twist_df['subtype'].unique())
+
+# +
+fig, ax = plt.subplots(15, 2, figsize=[25, 80], sharey=True)
+axes = ax.flatten()
+i = 0
+for om, rows in twist_df.groupby('om'):
+    
+    #display(rows)
+    sns.lineplot(x='z-index', y='angle', hue='subtype', data=rows, markers=True, ax=axes[i])
+    axes[i].set_title(f"Ommatidium: {om}")
+    i += 1
+    
+axes[-1].remove()
+fig.savefig("/mnt/home/nchua/Dropbox/200902_microvilli_raw_all.pdf", bbox_inches='tight')
+
+# +
+fig, ax = plt.subplots(15, 2, figsize=[25, 80], sharey=True)
+axes = ax.flatten()
+i = 0
+for om, rows in twist_df.groupby('om'):
+    rows = rows.loc[[i for i, v in rows['subtype'].items() if int(v[1]) > 6]] 
+    #display(rows)
+    sns.lineplot(x='z-index', y='angle', hue='subtype', data=rows, markers=True, ax=axes[i])
+    axes[i].set_title(f"Ommatidium: {om}")
+    i += 1
+    
+axes[-1].remove()
+fig.savefig("/mnt/home/nchua/Dropbox/200902_microvilli_raw_lvf.pdf", bbox_inches='tight')
+
+# +
+fig, ax = plt.subplots(15, 2, figsize=[25, 80], sharey=True)
+axes = ax.flatten()
+i = 0
+for om, rows in twist_df.groupby('om'):
+    rows = rows.loc[[i for i, v in rows['subtype'].items() if int(v[1]) < 7]] 
+    #display(rows)
+    sns.lineplot(x='z-index', y='angle', hue='subtype', data=rows, markers=True, ax=axes[i])
+    axes[i].set_title(f"Ommatidium: {om}")
+    i += 1
+    
+axes[-1].remove()
+fig.savefig("/mnt/home/nchua/Dropbox/200902_microvilli_raw_svf.pdf", bbox_inches='tight')
+# -
+
+cols = pd.MultiIndex.from_product([['SD of angle', 'max displacement', ]])
+twist_results = pd.DataFrame(columns = pd.Multi)
 
 # +
 r7_sd = r7.std()
