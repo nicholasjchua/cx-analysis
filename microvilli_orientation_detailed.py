@@ -18,11 +18,15 @@
 # - NOTE: this was written for the data AM sent in April 2020: this spreadsheet only included R7 and R7', and lacked the z index in which each measurement was taken
 # - Replaced by notebook written for the new excel file AM sent in August 2020 that includes measurements for all photoreceptors along with the z index each measurement was taken
 
+# +
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import mannwhitneyu
+
+from vis.hex_lattice import hexplot
+from vis.fig_tools import linear_cmap
 
 # +
 xl_dir = '~/Data/200824_microvilli.xlsx'
@@ -58,9 +62,16 @@ for i in range(0, 29):  # each table in the sheet corresponds to an ommatidia
         # Should R7' be changed to R7p? 
 
         z_col = z_st_cols[z_st_cols == this_st.lower()].index[0]
+        
+        # Some ommatidia, e.g. E4, are flipped: distal end towards lower z-slices
+        if this_range.iloc[2, 4] > this_range.iloc[3, 4]: # start/end index for R1
+            z_inds = this_range.iloc[4:, z_col]
+        else:
+            z_inds = this_range.iloc[4:, z_col] * -1.0
+        
         twist.append(pd.DataFrame({'om': [this_om]*rows, 
                                      'subtype': [this_st]*rows, 
-                                     'z-index': this_range.iloc[4:, z_col], 
+                                     'z-index': z_inds, 
                                      'angle': this_range.iloc[4:, ii]}))
         
 twist_df = pd.concat(twist, ignore_index=True)
@@ -76,18 +87,27 @@ ndra_om = [str(o) for o in all_om if o not in dra_om]
 subtypes = sorted(twist_df['subtype'].unique())
 
 # +
-fig, ax = plt.subplots(15, 2, figsize=[25, 80], sharey=True)
-axes = ax.flatten()
-i = 0
-for om, rows in twist_df.groupby('om'):
+
+twist_df['cosine'] = np.cos(twist_df['angle']*(np.pi/180.0))
+twist_df['cosine_sq'] = np.cos(twist_df['angle']*(np.pi/180.0)) ** 2
+twist_df['CCW_angle'] = [(360.0 + x) if x < 0 else x for x in twist_df['angle']]
+        
+    twist_df['CCW_dev'] = twist_df['CCW_angle']
+display (twist_df)
+
+# +
+# fig, ax = plt.subplots(15, 2, figsize=[25, 80], sharey=True)
+# axes = ax.flatten()
+# i = 0
+# for om, rows in twist_df.groupby('om'):
     
-    #display(rows)
-    sns.lineplot(x='z-index', y='angle', hue='subtype', data=rows, markers=True, ax=axes[i])
-    axes[i].set_title(f"Ommatidium: {om}")
-    i += 1
+#     #display(rows)
+#     sns.lineplot(x='z-index', y='cosine_sq', hue='subtype', data=rows, markers=True, ax=axes[i])
+#     axes[i].set_title(f"Ommatidium: {om}")
+#     i += 1
     
-axes[-1].remove()
-fig.savefig("/mnt/home/nchua/Dropbox/200902_microvilli_raw_all.pdf", bbox_inches='tight')
+# axes[-1].remove()
+# #fig.savefig("/mnt/home/nchua/Dropbox/200902_microvilli_raw_all.pdf", bbox_inches='tight')
 
 # +
 fig, ax = plt.subplots(15, 2, figsize=[25, 80], sharey=True)
@@ -96,30 +116,72 @@ i = 0
 for om, rows in twist_df.groupby('om'):
     rows = rows.loc[[i for i, v in rows['subtype'].items() if int(v[1]) > 6]] 
     #display(rows)
-    sns.lineplot(x='z-index', y='angle', hue='subtype', data=rows, markers=True, ax=axes[i])
+    sns.lineplot(x='z-index', y='cosine_sq', hue='subtype', data=rows, markers=True, ax=axes[i])
     axes[i].set_title(f"Ommatidium: {om}")
     i += 1
     
 axes[-1].remove()
-fig.savefig("/mnt/home/nchua/Dropbox/200902_microvilli_raw_lvf.pdf", bbox_inches='tight')
+#fig.savefig("/mnt/home/nchua/Dropbox/200902_microvilli_raw_lvf.pdf", bbox_inches='tight')
 
 # +
-fig, ax = plt.subplots(15, 2, figsize=[25, 80], sharey=True)
-axes = ax.flatten()
-i = 0
-for om, rows in twist_df.groupby('om'):
-    rows = rows.loc[[i for i, v in rows['subtype'].items() if int(v[1]) < 7]] 
-    #display(rows)
-    sns.lineplot(x='z-index', y='angle', hue='subtype', data=rows, markers=True, ax=axes[i])
-    axes[i].set_title(f"Ommatidium: {om}")
-    i += 1
+# fig, ax = plt.subplots(15, 2, figsize=[25, 80], sharey=True)
+# axes = ax.flatten()
+# i = 0
+# for om, rows in twist_df.groupby('om'):
+#     rows = rows.loc[[i for i, v in rows['subtype'].items() if int(v[1]) < 7]] 
+#     #display(rows)
+#     sns.lineplot(x='z-index', y='cosine_sq', hue='subtype', data=rows, markers=True, ax=axes[i])
+#     axes[i].set_title(f"Ommatidium: {om}")
+#     i += 1
     
-axes[-1].remove()
-fig.savefig("/mnt/home/nchua/Dropbox/200902_microvilli_raw_svf.pdf", bbox_inches='tight')
-# -
+# axes[-1].remove()
+# #fig.savefig("/mnt/home/nchua/Dropbox/200902_microvilli_raw_svf.pdf", bbox_inches='tight')
 
-cols = pd.MultiIndex.from_product([['SD of angle', 'max displacement', ]])
-twist_results = pd.DataFrame(columns = pd.Multi)
+# +
+cols = pd.MultiIndex.from_product([['SD of angle', 'Average cosine_sq', 'SD of cosine_sq', 'average_twist_rate', 'max displacement'], subtypes], names=['measure', 'subtype'])
+twist_results = pd.DataFrame(columns = cols, index=all_om)
+
+for this_st, st_rows in twist_df.groupby('subtype'):
+    for this_om, rows in st_rows.groupby('om'):
+
+        twist_results.loc[this_om, ('SD of angle', this_st)] = rows['angle'].std()
+        twist_results.loc[this_om, ('Average cosine_sq', this_st)] = rows['cosine_sq'].mean()
+        twist_results.loc[this_om, ('SD of cosine_sq', this_st)] = rows['cosine_sq'].std()
+        
+        twist_results.loc[this_om, ('max displacement', this_st)] = rows['angle'].max() - rows['angle'].min()
+        
+        
+display(twist_results.loc[:, 'SD of cosine_sq'])
+
+# +
+fig, axes = plt.subplots(3, 3, figsize=[35, 35])
+# cm = linear_cmap(n_vals=100, max_colour=(1.0, 1.0, 1.0), min_colour='r')
+cm = linear_cmap(n_vals=100, max_colour='r')
+
+for ax, this_st in zip(axes.flatten(), subtypes):
+    node_data = dict.fromkeys(all_om)
+    this_max = twist_results.loc[:, ('SD of cosine_sq', this_st)].max()
+    for om in all_om:
+        sd = twist_results.loc[om, ('SD of cosine_sq', this_st)]
+        node_data[om] = {'label': f"{sd: .2f}",
+                        'colour': cm(sd/0.5)}
+    ax.set_title(f"{this_st} SD of cosine squared angle")
+    hexplot(node_data=node_data, ax=ax)
+
+# +
+fig, axes = plt.subplots(3, 3, figsize=[35, 35])
+# cm = linear_cmap(n_vals=100, max_colour=(1.0, 1.0, 1.0), min_colour='r')
+cm = linear_cmap(n_vals=100, max_colour='r')
+
+for ax, this_st in zip(axes.flatten(), subtypes):
+    node_data = dict.fromkeys(all_om)
+    this_max = twist_results.loc[:, ('Average cosine_sq', this_st)].max()
+    for om in all_om:
+        data = twist_results.loc[om, ('Average cosine_sq', this_st)]
+        node_data[om] = {'label': f"{data: .2f}",
+                        'colour': cm(data)}
+    ax.set_title(f"{this_st} Mean of cosine squared angle")
+    hexplot(node_data=node_data, ax=ax)
 
 # +
 r7_sd = r7.std()
