@@ -61,6 +61,7 @@ cm = subtype_cm()
 
 r7_inputs = widedf.filter(regex='->R7$').sum(axis=1)
 r7p_inputs = widedf.filter(regex='->R7p$').sum(axis=1)
+r8_inputs = widedf.filter(regex='->R8$').sum(axis=1)
 
 # ## Lamina connectome reveals different R7 wiring patterns in the dorsal area of the retinotopic field
 
@@ -130,8 +131,10 @@ for o in om_list:
     else:
         linestyle = '-'
         
-    ax[0].plot(['Inputs to R7', 'Inputs to R7p'], [r7_inputs[o], r7p_inputs[o]], color=cm['R7p'], linestyle=linestyle)
-    ax[0].scatter(['Inputs to R7', 'Inputs to R7p'], [r7_inputs[o], r7p_inputs[o]], color='k')
+#     ax[0].plot(['Inputs to R7', 'Inputs to R7p'], [r7_inputs[o], r7p_inputs[o]], color=cm['R7p'], linestyle=linestyle)
+#     ax[0].scatter(['Inputs to R7', 'Inputs to R7p'], [r7_inputs[o], r7p_inputs[o]], color='k')
+    ax[0].plot(['Inputs to R7', 'Inputs to R7p', 'R8'], [r7_inputs[o], r7p_inputs[o], r8_inputs[o]], color=cm['R7p'], linestyle=linestyle)
+    ax[0].scatter(['Inputs to R7', 'Inputs to R7p', 'R8'], [r7_inputs[o], r7p_inputs[o], r8_inputs[o]], color='k')
 lines = [Line2D([0], [0], color=cm['R7p'], linestyle='--'),
         Line2D([0], [0], color=cm['R7p'], linestyle='-')]
 ax[0].legend(lines, ['DRA ommatidia', 'NDRA ommatidia'])

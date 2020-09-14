@@ -21,9 +21,12 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
+# +
+
 om = 'C6'
 #vol_path = "~/Data/200812_rhab/omC6_axon_to_lens_im_rotated_crop.npz"
 vol_path = f"/mnt/ceph/data/neuro/wasp_em/nchua/200817_rhab_xsections/om{om}_axon_to_lens_im_rotated_crop.npz"
+vol_path = f"/mnt/ceph/data/neuro/wasp_em/nchua/200817_rhab_xsections/om{om}_rb_subsampled_pngs/"
 with np.load(os.path.expanduser(vol_path)) as data:
     vol = data['im_crop'][400:1200, 400:1200] 
 
