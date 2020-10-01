@@ -25,7 +25,7 @@ import seaborn as sns
 from scipy.stats import mannwhitneyu
 import statsmodels.api as sm
 
-from dataframe_org import extract_connector_table
+from src.dataframe_tools import extract_connector_table
 from src.cartridge_metadata import ret_clusters
 from vis.colour_palettes import subtype_cm
 
@@ -37,7 +37,7 @@ mpl.rc('figure', figsize=[12, 12])
 
 # +
 # synaptic links (contacts)
-tp = '200507'
+tp = '200914'
 data_path = f'~/Data/{tp}_lamina/{tp}_linkdf.pickle'
 df = pd.read_pickle(data_path)
 
@@ -45,7 +45,7 @@ df = pd.read_pickle(data_path)
 rb = pd.read_csv('~/Data/lamina_additional_data/ret_cell_vol.csv').set_index('rtype').T
 rb.index.name = 'om'
 rb = rb.loc[sorted(rb.index), sorted(rb.columns)]
-rb_frac = (rb.T/rb.sum(axis=1)).T
+rb_frac = (rb.T/rb.sum(axis=1)).T.rename(mapper={'vol': 'fvol'}, axis=1)
 
 rtypes = rb.columns
 subtypes = np.unique(df['post_type'])
@@ -82,40 +82,38 @@ ctx = pd.DataFrame(n_contacts).fillna(0).astype(int).T
 
 terms.index.name = 'om'
 ctx.index.name = 'om'
-# -
 
-
-
-# +
+ctx
+# + {}
 # Longform dataframes for seaborn functions
 # Alternatives: number of contacts or number of pre terminals, rhabdomere vol or faction of rhabdom total
 # Decide which is concatenated in combined
 
-l_terms = pd.melt(terms.reset_index(), id_vars='om', value_vars=terms.columns, var_name='subtype', value_name='syn_count')
-l_rbfrac = pd.melt(rb_frac.reset_index(), id_vars='om', value_vars=rb_frac.columns,  var_name='subtype', value_name='vol')
-
+l_terms = pd.melt(terms.reset_index(), id_vars='om', value_vars=terms.columns, var_name='subtype', value_name='term_count')
+l_rbfrac = pd.melt(rb_frac.reset_index(), id_vars='om', value_vars=rb_frac.columns,  var_name='subtype', value_name='fvol')
 l_ctx = pd.melt(ctx.reset_index(), id_vars='om', value_vars=ctx.columns, var_name='subtype', value_name='syn_count')
 l_rb = pd.melt(rb.reset_index(), id_vars='om', value_vars=rb.columns,  var_name='subtype', value_name='vol')
 
-#combined = pd.concat([l_rbfrac, l_terms['syn_count']], axis=1)
-combined = pd.concat([l_rb, l_ctx['syn_count']], axis=1)
-#combined = pd.concat([l_rb, l_ctx['syn_count']], axis=1)
-
+# combined has fields for 'vol': raw volume, 'fvol': fractional volume, 'syn_count': connection count, 'term_count': terminal count 
+combined = pd.concat([l_rb, l_rbfrac['fvol'], l_ctx['syn_count'], l_terms['term_count']], axis=1)
+combined
 # -
 
 
-combined
-
 # ## Differences between short photoreceptor subtypes 
+
+# Options for the type of volume/connectivity vars to plot and fit
+x = 'fvol'  # or 'vol'
+y = 'syn_count'  # or 'term_count'
 
 # +
 
-combined = pd.concat([l_rb, l_ctx['syn_count']], axis=1)
+#combined = pd.concat([l_rb, l_ctx['syn_count']], axis=1)
 data = combined.loc[[i for i, row in combined.iterrows() if row['subtype'] not in ['R7', 'R7p', 'R8']]]
-xmax = data['vol'].max()
-ymax = data['syn_count'].max()
+xmax = data[x].max()
+ymax = data[y].max()
 
-g = sns.JointGrid(x="vol", y="syn_count", data=data, height=8,
+g = sns.JointGrid(x=x, y=y, data=data, height=8,
                   xlim=[0, xmax + (xmax*0.1)], ylim=[0, ymax + (ymax*0.1)])
 
 
@@ -127,23 +125,72 @@ for i, p in enumerate(spr_pairs):
     
     c = cm[p[0]+p[1]]
     
-    g.ax_joint.scatter(x=data.loc[rows, 'vol'], y=data.loc[rows, 'syn_count'], label=f'{p[0]}/{p[1]}', marker=pt[i], color=c, s=40)
+    g.ax_joint.scatter(x=data.loc[rows, 'fvol'], y=data.loc[rows, y], label=f'{p[0]}/{p[1]}', marker=pt[i], color=c, s=40)
     g.ax_joint.legend(loc='upper left')
     
-    sns.kdeplot(data.loc[rows, 'vol'], legend=False, ax=g.ax_marg_x, color=c)
-    sns.kdeplot(data.loc[rows, 'syn_count'], legend=False, ax=g.ax_marg_y, vertical=True, color=c)
+    sns.kdeplot(data.loc[rows, x], legend=False, ax=g.ax_marg_x, color=c)
+    sns.kdeplot(data.loc[rows, y], legend=False, ax=g.ax_marg_y, vertical=True, color=c)
+if x == 'fvol':
+    g.ax_joint.set_xlabel("Fraction of total rhabdom volume")
+else:
+    g.ax_joint.set_xlabel('Rhabdomere volume')
+        
+if y == 'syn_count':
+    g.ax_joint.set_ylabel("Number of synaptic connections (outputs)")
+else:
+    g.ax_joint.set_ylabel('Number of presynaptic terminals')
     
-g.ax_joint.set_ylabel('Number of presynaptic contacts')
-g.ax_joint.set_xlabel("Rhabdomere volume (\u03BC" + "$m^3$)")
-#g.ax_joint.set_xlabel("Rhabdomere volume (\u03BC" + "$m^3$)")
-g.savefig("/mnt/home/nchua/Dropbox/200609_pr-v-cx.svg")
-# -
 
+#g.ax_joint.set_xlabel("Rhabdomere volume (\u03BC" + "$m^3$)")
+#g.savefig("/mnt/home/nchua/Dropbox/200609_pr-v-cx.svg")
+# -
+# ## Correlation between rhabdomere volume and number of presynaptic terminals
+# - [statsmodel OLS](https://www.statsmodels.org/stable/generated/statsmodels.regression.linear_model.OLS.html)
+# - [why R-squared is so high when no intercept is fitted?](https://stats.idre.ucla.edu/other/mult-pkg/faq/general/faq-why-are-r2-and-f-so-large-for-models-without-a-constant/)
 
 
 # +
+data = combined.loc[[i for i, row in combined.iterrows() if row['subtype'] not in ['R7', 'R7p', 'R8']]]
+
+X = data[x] 
+X = sm.add_constant(X)
+Y = data[y]
+
+model = sm.OLS(Y, X)
+results = model.fit()
+
+display(results.summary())
+
+# +
+data = combined.loc[[i for i, row in combined.iterrows() if row['subtype'] not in ['R7', 'R7p', 'R8']]]
+
+X = data['fvol']
+X = sm.add_constant(X)
+Y = data['term_count']
+
+model = sm.OLS(Y, X)
+results = model.fit()
+
+display(results.summary())
+
+# +
+data = combined.loc[[i for i, row in combined.iterrows() if row['subtype'] not in ['R7', 'R7p', 'R8']]]
+
 X = data['vol']
+X = sm.add_constant(X)
 Y = data['syn_count']
+
+model = sm.OLS(Y, X)
+results = model.fit()
+
+display(results.summary())
+
+# +
+data = combined.loc[[i for i, row in combined.iterrows() if row['subtype'] not in ['R7', 'R7p', 'R8']]]
+
+X = data['vol']
+X = sm.add_constant(X)
+Y = data['term_count']
 
 model = sm.OLS(Y, X)
 results = model.fit()
@@ -151,7 +198,9 @@ results = model.fit()
 display(results.summary())
 # -
 
-# ### Hypothesis test (number of outputs) 
+#
+
+# ## Hypothesis test: synaptic outputs from R2 and R5 (central short PRs) and R1, R3, R4, and R6 (peripheral short PRs) 
 
 # +
 central = [*ctx['R2'].tolist(), *ctx['R5'].tolist()]
@@ -166,7 +215,7 @@ else:
     print("Reject null: R2R5 inputs significantly larger")
 # -
 
-# ### Hypothesis test (rhabdomere volume)
+# ## Hypothesis test: rhabdomere volume of R2 and R5 (central short PRs) and R1, R3, R4, and R6 (peripheral short PRs) 
 
 # +
 central = [*rb['R2'].tolist(), *rb['R5'].tolist()]
@@ -183,41 +232,6 @@ else:
 
 # ## Variability of long photoreceptor volumes
 
-# +
-# # Rhabdomere volume
-# data = rb.filter(items=['R7', 'R8', 'R7p'], axis=1)
-
-# fig, ax = plt.subplots(1, figsize=[10, 15])
-# for i, row in data.iterrows():
-#     if str(i) in ret_clust['dra']:
-#         l = '--'
-#     #elif str(i) in [*ret_clust['v_trio'], *ret_clust['vra']]:
-# #     elif str(i) in ret_clust['vra']:
-# #         l = '-.'
-#     else:
-#         l = '-'
-#     ax.plot([0, 1, 2], row[['R7', 'R8', 'R7p']].tolist(), color='dimgray', linestyle=l)
-#     ax.set_xticklabels(['', 'R7', '', '', '', 'R8', '', '', '', 'R7p'])
-    
-# m = ['x', 'o', '+']
-# for i, rt in enumerate(['R7', 'R8', 'R7p']):
-#     data = rb[rt]
-#     ax.scatter([i]*len(data), data, marker=m[i], color=cm[rt], label=f'{rt}')
-# ax.spines['right'].set_visible(False)
-# ax.spines['top'].set_visible(False)   
-# ax.set_xlabel('Long photoreceptor subtype')
-# ax.set_ylabel("Rhabdomere volume (\u03BC" + "$m^3$)")
-
-# lines = [Line2D([0], [0], color='dimgray', linestyle='--'),
-#         Line2D([0], [0], color='dimgray', linestyle='-')]
-
-# point_leg = ax.legend()
-# line_leg = ax.legend(lines, ['DRA ommatidia', 'Non-DRA ommatidia'], loc=[0.015, 0.83]) 
-# ax.add_artist(point_leg)
-# plt.show()
-
-# fig.savefig("/mnt/home/nchua/Dropbox/200610_lpr-v-cx.svg")
-# -
 
 
 

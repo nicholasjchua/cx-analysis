@@ -236,12 +236,12 @@ ax.set_ylabel('Frequency observed')
 # #fig.savefig("/mnt/home/nchua/Dropbox/200902_microvilli_raw_svf.pdf", bbox_inches='tight')
 
 # +
-cols = pd.MultiIndex.from_product([['mean_diff', 'mean_diff_per_micron', 'SD_diff', 'mean_cosine_sq', 'SD_cosine_sq', 'max_displacement', 'SD_displacement', 'length', 'n_measure'], subtypes], names=['measure', 'subtype'])
+cols = pd.MultiIndex.from_product([['mean_diff', 'mean_diff_per_micron', 'SD_diff', 'mean_cosine_sq', 'r_mean_cosine_sq', 'SD_cosine_sq', 'max_displacement', 'SD_displacement', 'length', 'n_measure'], subtypes], names=['measure', 'subtype'])
 twist_results = pd.DataFrame(columns = cols, index=all_om)
 
 rh_length = pd.Series(index=all_om, dtype=float)
 
-
+display(twist_df.loc[[bool([twist_df['om'] == 'A1']) & bool([twist_df['subtype'] == 'R7'])], 'cosine_sq'].mean())
 
 for this_st, st_rows in twist_df.groupby('subtype'):
     for this_om, rows in st_rows.groupby('om'):
@@ -254,6 +254,7 @@ for this_st, st_rows in twist_df.groupby('subtype'):
         twist_results.loc[this_om, ('mean_diff_per_micron', this_st)] =  rows['diff_per_micron'].mean()
         
         twist_results.loc[this_om, ('mean_cosine_sq', this_st)] = rows['cosine_sq'].mean()
+        
         twist_results.loc[this_om, ('SD_cosine_sq', this_st)] = rows['cosine_sq'].std()
         
         twist_results.loc[this_om, ('max_displacement', this_st)] = rows['cumulative'].max()
@@ -261,7 +262,11 @@ for this_st, st_rows in twist_df.groupby('subtype'):
         #twist_results.loc[this_om, ('max_displacement_per_micron', this_st)] = rows['cumulative'].max() / twist_results.loc[this_om, ('length', this_st)]
         
 
-display(twist_results['SD_displacement'])
+#twist_results.loc[:, ('r_mean_cosine_sq')] = twist_results.loc[:, ('mean_cosine_sq', 'R7')] + 
+#twist_results.loc[:, 'mean_cosine_sq']
+#- twist_results.loc[:, ('mean_cosine_sq', 'R7')]
+#display(twist_results.loc[:, ('mean_cosine_sq', 'R7')])
+#display(twist_results.loc[:, ['mean_cosine_sq', 'r_mean_cosine_sq']])
 # display(twist_results['length'])
 # display(twist_results['mean_diff_per_micron'])
 
@@ -314,6 +319,8 @@ for ax, this_st in zip(axes.flatten(), subtypes):
     hexplot(node_data=node_data, ax=ax)
 
 # +
+
+
 fig, axes = plt.subplots(3, 3, figsize=[35, 35])
 # cm = linear_cmap(n_vals=100, max_colour=(1.0, 1.0, 1.0), min_colour='r')
 cm = linear_cmap(n_vals=100, max_colour='r')

@@ -34,7 +34,7 @@ from vis.colour_palettes import subtype_cm
 from vis.fig_tools import linear_cmap
 
 # +
-tp = '200507'
+tp = '200914'
 cx = pd.read_pickle(f'~/Data/{tp}_lamina/{tp}_cxdf.pickle')
 subtypes = np.unique([*cx["pre_type"], *cx["post_type"]])
 

@@ -13,10 +13,16 @@
 #     name: wasp
 # ---
 
-# # Correlated connection types across ommatidia
-# - The connection counts of the basic lamina circuit varies across ommatidia
-# - Do certain connection counts vary in concert with others? 
-# - Can we group correlated connection types into clusters? 
+# # Characterising different lamina connections 
+#
+# - Are there classes of connections that are more invariant than others?
+# - Are there components of the lamina circuit that reflect differences in optics or retinotopic position?
+# - Which aspects of the lamina circuit vary stochastically, or in ways unexplained by our data?
+#
+# We observed many of the possible 'pre->post' permutations that can be formed between each lamina subtype
+# - Assumption: A subset of the connections observed do not contribute to the function of the circuit -- . We might be able to break this down further: noise connections observed due to methodological error vs wiring error.
+# - Assumption: Connections that perform an essential function would be consistently observed among circuits compared to connections resulting from methodological/wiring errors. 
+# - Assumption: Connections that perform an essential function would be strongly connected via more synapses.
 #
 # 1. Calculate (across ommatidia) correlation matrix containing an element for each pairwise correlation between each connection count
 # 2. Sort rows and columns of correlation matrix to minimize distance between each connection type's vector of correlation coefficients
@@ -40,20 +46,31 @@ from vis.colour_palettes import subtype_cm
 from vis.fig_tools import linear_cmap
 
 # +
-tp = '200507'
+tp = '200914'
 linkdf = pd.read_pickle(f'~/Data/{tp}_lamina/{tp}_linkdf.pickle')
 cxdf = pd.read_pickle(f'~/Data/{tp}_lamina/{tp}_cxdf.pickle')
 
-cxvecs = assemble_cxvectors(linkdf)
+cxvecs = assemble_cxvectors(linkdf)   # each ommatidium has a vector of the different connection counts
+# -
+
+# ## Connections observed in the lamina
+# - When opposite pairs of short photoreceptors are combined (i.e. R1R4->L3 = R1->L3 + R4->L3), there are 13 classes of cells that participate in the lamina circuit
+# - The 12 subtypes can form at most 169 pre->post permutations. Of the 169 possibilities, we observed 161 of them at least once throughout the whole lamina
+# - 106 of the 161 connections observed (more than 65%) were found at an average rate of less than 1 synapse per ommatidia
+# - Connections that are entirely absent in some ommatidium (e.g. R1R4->eLMC_4) can still be strongly connected (large average synapse count despite many zeros) 
 
 # +
-thresh = cxvecs.mean()>1.0  # what about >= ?? CHECK
-cxvecs = cxvecs.loc[:, thresh]
+st_before = cxvecs.columns  # hold on to all connection types incl. those with sub-threshold averages
+display(f"Number of observed connections (unfiltered): {len(st_before)}")
+mean_thresh = 1.0
+cxvecs = cxvecs.loc[:, cxvecs.mean() >= 1.0]
+display(f"Number of observed connections (mean >= {mean_thresh}): {len(cxvecs.columns)}")
+display(f"Number of subtypes: {len(set([*linkdf['pre_type'].unique(), *linkdf['post_type'].unique()]))}")
 
 cm = subtype_cm() # a dict
 # -
 
-cxvecs
+cxvecs.columns
 
 # ## Clustering the correlation matrix of all connections including those between cartridges
 
@@ -84,7 +101,7 @@ clus = sns.clustermap(cx_corr, xticklabels=cx_corr.columns, yticklabels=cx_corr.
                       row_colors=row_colors, col_colors=col_colors, linewidth=0.1,
                       figsize=[11, 11], metric='cosine', 
                       cmap='vlag', vmax=1.0, vmin=-1.0)
-clus.savefig("/mnt/home/nchua/Dropbox/200610_ctype_clus.svg")
+#clus.savefig("/mnt/home/nchua/Dropbox/200610_ctype_clus.svg")
 # -
 
 # Cluster 1: L2->L3, centri->(L1, L2, L3, R1-6, R7p), (L2, R1-6, centri)->centri

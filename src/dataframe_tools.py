@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from itertools import product
 from typing import Tuple
-
 #import src.connectome as cxt
 from src.skeleton import Skeleton
 """
@@ -96,18 +95,18 @@ def assemble_cxdf(C, linkdf) -> Tuple:
     return df, inter, unknowns
 
 
-def extract_connector_table(link_df: pd.DataFrame) -> pd.DataFrame:
+def extract_connector_table(linkdf: pd.DataFrame) -> pd.DataFrame:
     """
     Extract synaptic terminals from link dataframe
     TODO: split into two dataframes (one of summary, the other for cx's partner subtype breakdown)
     :param link_df:
     :return:
     """
-    cx_data = dict.fromkeys(np.unique(link_df['cx_id']))
-    p_counts = dict.fromkeys(np.unique(link_df['cx_id']))
-    subtypes = sorted(np.unique(link_df['post_type']))
+    cx_data = dict.fromkeys(np.unique(linkdf['cx_id']))
+    p_counts = dict.fromkeys(np.unique(linkdf['cx_id']))
+    subtypes = sorted(np.unique(linkdf['post_type']))
 
-    for cx, links in link_df.groupby('cx_id'):
+    for cx, links in linkdf.groupby('cx_id'):
         cx_data[cx] = dict()
         # if something goes wrong here, li
         # presynaptic info
@@ -130,18 +129,24 @@ def extract_connector_table(link_df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(cx_data).T
 
 
-def assemble_cxvectors(linkdf: pd.DataFrame, external: bool=True) -> pd.DataFrame:
+def assemble_cxvectors(linkdf: pd.DataFrame, external: bool=True, exclude_unknowns=True) -> pd.DataFrame:
     """
     assemble_cxvectors
-    Get a cxvectors dataframe from linkdf. Each row is an ommatidium, columns are each 
-    connection type found in linkdf. (like a bunch of flattened adj mats)
-    If external = True, will count connections made between ommatidia
-    (e.g. as 'eR1R4->L4' for R1R4 inputs external to the L4's home cartridge, and 'R1R4->eL4' in the home
-    cartridge of the R1R4). This way, connections between ommatidia are counted twice, once for the cartridge
-    receiving the input, and once for the cartridge giving the input to an external cell
+    Get a cxvectors dataframe from linkdf. 
+    :param link_df: pd.DataFrame, longform containing a row for each synaptic contact, 
+    :param external: bool, when True: synapses between neurons from different ommatidia are counted as a seperate category. 
+    The postsynaptic (recipient) subtype for interommatidial connections will start with an 'e' 
+    :param exclude_unknowns: bool, when True (default): synapses with an unidentified partner will not be counted. 
+    When False: 'UNKNOWN' is treated like another subtype, giving the dataframe columns like 'R2R5->UNKNOWN' 
+    
+    
+    Note: filtering certain connection types (e.g. discard connections with mean < 1.0) SHOULD NOT be done here
+          (maybe even connection types with an UNKNOWN partner should be included in the output) 
     """
-    # filter out orphan connections
-    linkdf = linkdf.loc[((linkdf['pre_om'] != 'UNKNOWN') & (linkdf['post_om'] != 'UNKNOWN'))]
+    # filter out connections to unidentified fragment
+    if not incl_unknowns:
+        linkdf = linkdf.loc[((linkdf['pre_om'] != 'UNKNOWN') & (linkdf['post_om'] != 'UNKNOWN'))]
+    
     oms = np.unique(linkdf['pre_om'])
     subtypes = np.unique([*linkdf['pre_type'], *linkdf['post_type']])
     ctypes = [f'{pre}->{post}' for pre, post in [p for p in product(subtypes, subtypes)]]

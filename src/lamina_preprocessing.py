@@ -3,8 +3,8 @@ import argparse
 from pprint import pprint
 import os.path
 from glob import glob
-#import sys
-#sys.path.append('/mnt/home/nchua/src/cx-analysis/src')
+import sys
+sys.path.append('/mnt/home/nchua/src/cx-analysis/src')
 import src.config
 from src.connectome import Connectome
 from src.utils import load_preprocessed_connectome

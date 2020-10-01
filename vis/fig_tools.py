@@ -22,17 +22,6 @@ def linear_cmap(n_vals: int, max_colour: Union[Tuple, str], min_colour: Union[Tu
     return cm
 
 
-def scale_distance_between(positions, scalar):
-    """
-    Takes a dict of figure coordinates and scales the distance between them
-    :param positions: dict(node_ref: (x, y))
-    :param scalar: distances between nodes is multiplied by this number
-    :return: positions: the results of the scaling operation
-    """
-    for this_node, this_pos in positions.items():
-        positions[this_node] = (this_pos[0] * scalar, this_pos[1] * scalar)
-    return positions
-
 def anatomical_axes(x: float, y: float, arrow_len: float, x_text: str="anterior", y_text: str="dorsal") -> None:
     """
     TODO: Use ax.annotate instead so that a predefined Axes object can be passed into the func
@@ -48,6 +37,7 @@ def anatomical_axes(x: float, y: float, arrow_len: float, x_text: str="anterior"
     plt.arrow(x, y, 0.0, arrow_len, fc='k', ec='k', head_width=0.03, head_length=0.05)
     plt.text(x, y + arrow_len + 0.1, y_text, fontsize=12)
 
+    
 def midpoint_2d(point1: Union[List, Tuple], point2: Union[List, Tuple]) -> Tuple:
     """
     Get the midpoint of two points in 2D space

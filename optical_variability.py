@@ -37,38 +37,16 @@ sevens_df = pd.read_csv('~/Data/r7r7p_microvilli_sd.csv', index_col=0).T
 dra_om = ['A4', 'A5', 'B5', 'B6', 'C5', 'C6', 'D6', 'D7', 'E6', 'E7']
 ndra_om = [str(o) for o in sevens_df.index if o not in dra_om]
 
-
-
 # +
 fig, ax = plt.subplots(1, 2, figsize=(24, 10))
-max_val =  df.max().max()
+max_val =  sevens_df.max().max()
+min_val = sevens_df.min().min()
 #cm = subtype_cm()
 lincm = linear_cmap(n_vals=100, max_colour='r')
 
 r7_twist = dict()
 r7p_twist = dict()
-for om, vals in df.iterrows():
-    r7_twist[om] = {'colour': lincm(vals['R7 SD']/max_val),
-                   'label': vals['R7 SD']}
-    r7p_twist[om] = {'colour': lincm(vals["R7' SD"]/max_val),
-                   'label': vals["R7' SD"]}
-
-hexplot(node_data=r7_twist, ax=ax[0])
-hexplot(node_data=r7p_twist, ax=ax[1])
-
-ax[0].set_title('R7 Rhabdomere twist \n(standard deviation of microvilli angle)')
-ax[1].set_title("R7' Rhabdomere twist \n(standard deviation of microvilli angle)")
-
-# +
-fig, ax = plt.subplots(1, 2, figsize=(24, 10))
-max_val =  df.max().max()
-min_val = df.min().min()
-#cm = subtype_cm()
-lincm = linear_cmap(n_vals=100, max_colour='r')
-
-r7_twist = dict()
-r7p_twist = dict()
-for om, vals in df.iterrows():
+for om, vals in sevens_df.iterrows():
     r7_twist[om] = {'colour': lincm((vals['R7 SD'] - min_val)/max_val),
                    'label': vals['R7 SD']}
     r7p_twist[om] = {'colour': lincm((vals["R7' SD"] - min_val)/max_val),
@@ -96,19 +74,21 @@ Drh = optics_df['D rhabdom dist.']
 # n = 1 # air
 nl = 1.452 # lens
 nc = 1.348 # cone
-# Power = P1 + P2 + P3 (thick lens formula)
-p1 = (nl - 1.0)/r1  # interface air->lens 
+# Power = P1 + P2 + P3 (thick lens formula) 
+# IN MICROMETERS
+p1 = (nl - 1.0)/r1 # interface air->lens 
 p2 = (nc - nl)/r2 # interface lens->cone
-p3 = (-t/nl)*(p1*p2)
+p3 = (-t/nl)*(p1*p2)  #?
 p = p1 + p2 + p3
 # Focal length of lens and image (n/p)
 f = 1.0/p
 fi = nc/p
 # F-number (ratio of lens diameter to focal length)
 FN = A/f
-# Acceptance angle of rhabdom
+# Acceptance angle of rhabdom (ray)
 # distal rhabdomere diameter / focal length
 aa = Drh/f
+
 # Half-width of airy disk
 lam = 0.5 # assuming green light with wavelength=0.5 microns
 hw = lam/A
@@ -119,6 +99,7 @@ optics_df['power'] = p
 optics_df['F-number'] = FN
 optics_df['acceptance_angle'] = aa
 optics_df['half-width'] = hw
+optics_df['interom-angle'] = 
 
 #display(optics_df.iloc[:, -6:])
 
@@ -126,20 +107,46 @@ optics_df['half-width'] = hw
 #optics_df.to_pickle('~/Data/200713_optics_calcs.pkl')
 
 # +
-fig, ax = plt.subplots(3, 2, figsize=(24, 33))
+fig, ax = plt.subplots(1, 2, figsize=[20, 10])
+
+display(optics_df)
+sns.regplot(x=optics_df['cone length (from the tip)'] + optics_df['lense thickness'], 
+            y='f', data=optics_df, ax=ax[0])
+ax[0].set_title('focal length of lens vs length from cornea to rhabdom')
+ax[0].set_xlabel('lens thickness + cone thickness')
+ax[0].set_ylabel('focal length')
+
+# +
+# f_pos = optics_df['cone length (from the tip)'] + optics_df['lense thickness'] - optics_df['f']
+# fig, ax = plt.subplots(1, figsize = [10, 10])
+# lincm = linear_cmap(n_vals=100, max_colour='r', min_colour='b', mp_colour=(1, 1, 1))
+# abs_max = f_pos.abs().max() 
+# display(abs_max)
+
+# node_data = {om: {'colour': lincm((x-f_pos.min())/abs_max),
+#                  'label': f"{x: .2f}"} for om, x in f_pos.items()}
+
+# hexplot(node_data, ax=ax)
+
+# +
+fig, ax = plt.subplots(7, 2, figsize=(24, 77))
 axes = ax.flatten()
-labels = ['focal length of lens (\u03BCm)', 'focal length in image plane (\u03BCm)',
-         'lens power', 'F-number', 'acceptance angle (radians)',
-         'Airy disk half-width (\u03BCm)']
+#labels = ['focal length of lens (\u03BCm)', 'focal length in image plane (\u03BCm)',
+         #'lens power', 'F-number', 'acceptance angle (radians)',
+         #'Airy disk half-width (\u03BCm)', '']
+
+
 
 i = 0
-for param, vals in optics_df.iloc[:, -6:].iteritems():
+for param, vals in optics_df.iteritems():
     max_val = vals.max()
     min_val = vals.min()
     node_data = {om: {'label': np.round(v, decimals=2),
                      'colour': lincm((v-min_val)/max_val)} for om, v in vals.items()}
     hexplot(node_data, ax=axes[i])
-    axes[i].set_title(f"{labels[i]}")
+    axes[i].set_title(f"{param}\n" + 
+                      f"Mean: {vals.mean(): .2f}\n" + 
+                      f"SD: {vals.std(): .2f}")
     # TO CHECK IF LABELS AND PARAMS LINE UP
     #axes[i].set_title(f"{labels[i]}\n{param}")
     i += 1
@@ -162,7 +169,7 @@ for param, vals in optics_df.iloc[:, -6:].iteritems():
     #axes[i].set_title(f"{labels[i]}\n{param}")
     i += 1
     
-    
+
 
 # +
 tp = '200507'

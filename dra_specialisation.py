@@ -42,7 +42,7 @@ mpl.rc('font', size=14)
 
 # +
 # Each ommatidia's onnection counts
-tp = '200507'
+tp = '200914'
 data_dir = f'~/Data/{tp}_lamina'
 cxdf = pd.read_pickle(os.path.join(os.path.expanduser(data_dir), f'{tp}_cxdf.pickle'))
 widedf = index_by_om(cxdf)  # pivot so that each row is an ommatidium with columns for each possible connection count
