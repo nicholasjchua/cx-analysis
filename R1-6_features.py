@@ -97,8 +97,17 @@ l_rb = pd.melt(rb.reset_index(), id_vars='om', value_vars=rb.columns,  var_name=
 # combined has fields for 'vol': raw volume, 'fvol': fractional volume, 'syn_count': connection count, 'term_count': terminal count 
 combined = pd.concat([l_rb, l_rbfrac['fvol'], l_ctx['syn_count'], l_terms['term_count']], axis=1)
 combined
-# -
 
+
+# +
+data = combined.loc[[i for i, row in combined.iterrows() if row['subtype'] not in ['R7', 'R7p', 'R8']]]
+multi = (data['syn_count']/data['term_count']).mean()
+multi_sd = (data['syn_count']/data['term_count']).std(ddof=0)
+
+display(len(data))
+display(multi)
+display(multi_sd)
+# -
 
 # ## Differences between short photoreceptor subtypes 
 
@@ -125,7 +134,7 @@ for i, p in enumerate(spr_pairs):
     
     c = cm[p[0]+p[1]]
     
-    g.ax_joint.scatter(x=data.loc[rows, 'fvol'], y=data.loc[rows, y], label=f'{p[0]}/{p[1]}', marker=pt[i], color=c, s=40)
+    g.ax_joint.scatter(x=data.loc[rows, x], y=data.loc[rows, y], label=f'{p[0]}/{p[1]}', marker=pt[i], color=c, s=40)
     g.ax_joint.legend(loc='upper left')
     
     sns.kdeplot(data.loc[rows, x], legend=False, ax=g.ax_marg_x, color=c)

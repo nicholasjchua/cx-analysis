@@ -105,11 +105,13 @@ optics_df['interom-angle'] =
 
 #### SAVE CALCULATIONS ####
 #optics_df.to_pickle('~/Data/200713_optics_calcs.pkl')
+# -
+
+display(optics_df)
 
 # +
 fig, ax = plt.subplots(1, 2, figsize=[20, 10])
 
-display(optics_df)
 sns.regplot(x=optics_df['cone length (from the tip)'] + optics_df['lense thickness'], 
             y='f', data=optics_df, ax=ax[0])
 ax[0].set_title('focal length of lens vs length from cornea to rhabdom')

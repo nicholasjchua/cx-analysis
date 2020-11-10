@@ -129,7 +129,7 @@ def extract_connector_table(linkdf: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(cx_data).T
 
 
-def assemble_cxvectors(linkdf: pd.DataFrame, external: bool=True, exclude_unknowns=True) -> pd.DataFrame:
+def assemble_cxvectors(linkdf: pd.DataFrame, external: bool=True, excl_unknowns: bool=True) -> pd.DataFrame:
     """
     assemble_cxvectors
     Get a cxvectors dataframe from linkdf. 
@@ -144,7 +144,7 @@ def assemble_cxvectors(linkdf: pd.DataFrame, external: bool=True, exclude_unknow
           (maybe even connection types with an UNKNOWN partner should be included in the output) 
     """
     # filter out connections to unidentified fragment
-    if not incl_unknowns:
+    if excl_unknowns:
         linkdf = linkdf.loc[((linkdf['pre_om'] != 'UNKNOWN') & (linkdf['post_om'] != 'UNKNOWN'))]
     
     oms = np.unique(linkdf['pre_om'])
@@ -174,6 +174,105 @@ def assemble_cxvectors(linkdf: pd.DataFrame, external: bool=True, exclude_unknow
                 continue # skip external connections if asked to
                 
     return df    
+
+
+def assemble_rhabdomere_df(full_df: pd.DataFrame) -> pd.DataFrame:
+    # The excel file contains a table for each ommatidium
+    data = []
+    # TODO: extract other data
+    om = []
+    cell = []
+
+    for i in range(0, 29):  # ommatidia
+        # excel has 16 rows for each ommatidia, but only 13 have data
+        this_range = full_df.loc[i * 16: i * 16 + 13].reset_index(drop=True)
+        this_om = this_range.iloc[0, 0]
+        if this_om == 'C5':  # C5 has an extra row 
+            this_range = full_df.loc[i * 16: i * 16 + 14].reset_index(drop=True)
+            rows = 11
+        else:
+            rows = 10
+        # these cells contain the z-index where each measurement was taken
+        z_st_cols = this_range.iloc[3, 13:]  
+
+        assert(len(this_om) == 2)  # check om name
+        assert(len(z_st_cols) == 9)  # check that there are 9 photoreceptors
+
+        for ii, this_st in this_range.iloc[0, 4:13].items():  # subtypes 
+            if '(' in this_st:  # some have the old subtype nomenclature in ()
+                this_st = this_st.split('(')[0]
+                
+            this_st = this_st.strip().upper()
+                
+            z_col = z_st_cols[z_st_cols == this_st.lower()].index[0]
+            
+            # Add negative sign to stack index that start proximal 
+            if this_range.iloc[2, 4] < this_range.iloc[3, 4]: # start/end index for R1
+                z_inds = this_range.iloc[4:, z_col]
+            else:
+                z_inds = this_range.iloc[4:, z_col] * -1.0
+            
+            if this_st == "R7'":
+                this_st = 'R7p'
+
+            data.append(pd.DataFrame({'om': [this_om]*rows, 
+                                      'subtype': [this_st]*rows, 
+                                      'z-index': z_inds, 
+                                      'angle': this_range.iloc[4:, ii]}))
+
+    df = pd.concat(data, ignore_index=True)
+    df = df.astype({'om': str, 
+                    'subtype': str,
+                    'z-index': float, 
+                    'angle': float})
+    
+    #compute some secondary results
+    return rhabdomere_computations(df)
+
+    
+def rhabdomere_computations(df: pd.DataFrame) -> pd.DataFrame:
+    
+    from math import isnan
+    
+    for i, om_rows in df.groupby('om'):
+        for ii, rows in om_rows.groupby('subtype'):
+            n = 0
+            for iii, row in rows.sort_values('z-index').iterrows():
+                df.loc[iii, 'n'] = int(n)
+                if n == 0:  # first measurement has diff of 0
+                    df.loc[iii, '_diff'] = np.nan
+                    df.loc[iii, 'diff'] = np.nan
+                    df.loc[iii, 'cumulative'] = 0.0
+                    df.loc[iii, '_angle'] = df.loc[iii, 'angle']
+                    df.loc[iii, 'interval_len'] = np.nan # 0.0
+                    df.loc[iii, 'interval_z'] = np.nan
+                    previous = (iii, df.loc[iii, 'angle'])
+                elif isnan(df.loc[iii, 'angle']):
+                    #print(f"NaN found for {i}_{ii} measurement: {n}")
+                    df.loc[iii, '_diff'] = np.nan
+                    df.loc[iii, 'diff'] = np.nan
+                    df.loc[iii, 'cumulative'] = np.nan
+                    df.loc[iii, '_angle'] = np.nan
+                    df.loc[iii, 'interval_len'] = np.nan
+                    df.loc[iii, 'interval_z'] = np.nan
+                    # previous = measurement before the NaN
+                else:
+                    df.loc[iii, '_diff'] = (df.loc[iii, 'angle'] - previous[1]) % 360.0
+                    df.loc[iii, 'diff'] = df.loc[iii, '_diff'] - 360.0 * (df.loc[iii, '_diff'] > 180.0)
+                    df.loc[iii, 'cumulative'] = df.loc[previous[0], 'cumulative'] + df.loc[iii, 'diff']
+                    df.loc[iii, '_angle'] = df.loc[previous[0], '_angle'] + df.loc[iii, 'diff']
+                    df.loc[iii, 'interval_len'] = (df.loc[iii, 'z-index'] - 
+                                                   df.loc[previous[0], 'z-index']) * 8.0 / 1000.0
+                    df.loc[iii, 'interval_z'] = df.loc[iii, 'z-index'] - df.loc[previous[0], 'z-index']
+                    # because 1 px = 8/1000 microns
+                    previous = (iii, df.loc[iii, 'angle'])
+                n += 1
+    df['diff_per_micron'] = df['diff'] / df['interval_len']
+    df['cosine_sq'] = np.cos(df['angle']*(np.pi/180.0)) ** 2
+    df['CCW_angle'] = [(360.0 + x) if x < 0 else x for x in df['angle']]
+
+    return df
+    
                         
             
     

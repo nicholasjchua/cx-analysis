@@ -14,8 +14,7 @@
 # ---
 
 # # R1-6 output characteristics
-# WORK IN PROGRESS  
-# Explore differences in output characteristics of the different short photoreceptor subtypes
+#
 #
 
 # +
@@ -25,26 +24,26 @@ import matplotlib.pyplot as plt
 from matplotlib.cm import get_cmap
 import seaborn as sns
 import itertools
-from sklearn.linear_model import LinearRegression
+#from sklearn.linear_model import LinearRegression
+import statsmodels.api as sm
 
 from vis.hex_lattice import hexplot
 from vis.colour_palettes import subtype_cm
 from vis.fig_tools import linear_cmap
 
-
 import matplotlib as mpl
-mpl.rc('font', size=14)
+#mpl.rc('font', size=14)
 
 # +
-tp = '200507'
+tp = '200914'
 lamina_links = pd.read_pickle(f'~/Data/{tp}_lamina/{tp}_linkdf.pickle')
-subtypes = np.unique([*lamina_links["pre_type"], *lamina_links["post_type"]])
 
+subtypes = np.unique([*lamina_links["pre_type"], *lamina_links["post_type"]])
 all_ctypes = [p for p in itertools.product(subtypes, subtypes)]  
 all_ctype_labels = [f"{pre}->{post}" for pre, post in all_ctypes]
-ommatidia = ommatidia = np.unique(lamina_links['pre_om'])
+om_list = ommatidia = np.unique(lamina_links['pre_om'])
 
-df_lamina = pd.DataFrame(index=ommatidia, columns=all_ctype_labels)
+df_lamina = pd.DataFrame(index=om_list, columns=all_ctype_labels)
 for om, row in df_lamina.iterrows():
     for c in all_ctype_labels:
         pre_t, post_t = c.split('->')
@@ -54,98 +53,348 @@ for om, row in df_lamina.iterrows():
         else:
             df_lamina.loc[om, c] = sum((lamina_links.pre_om == om) & (lamina_links.post_om == om) & 
                                        (lamina_links.pre_type == pre_t) & (lamina_links.post_type == post_t))
-            
 
 
 # +
-def lin_model_intercept0(x, y):
-    x = np.asarray(x).reshape(-1, 1)
-    y = np.asarray(y)
-    return LinearRegression(fit_intercept=False).fit(x, y)
-
-def plot_lin_fit(x, y, ax, plot_kwargs={}, scatter_kwargs={}):
-    xpoints = np.arange(0, max(x.max(), y.max())).reshape(-1, 1)
-    model = lin_model_intercept0(x, y)
-    fitprops = f"R^2: {model.score(x.to_numpy().reshape(-1, 1), y): .2f}, coef: {model.coef_[0]: .2f}"
-
-    ax.plot(xpoints, model.predict(xpoints), label=plot_kwargs.get('label', '') + ' \n' + fitprops, **plot_kwargs)
-    ax.scatter(x,y, label=None, **scatter_kwargs)
-    ax.legend()
-    
-
-
-# -
-
 svfs = ['R1', 'R2', 'R3', 'R4', 'R5', 'R6']
-df_presites = pd.DataFrame(index=ommatidia, columns=svfs)
-df_outputs = pd.DataFrame(index=ommatidia, columns=svfs)
-for om in ommatidia:
-    for s in svfs:
+all_vfs = [*svfs, 'R7', 'R8', 'R7p']
+lmcs = ['LMC_1', 'LMC_2', 'LMC_3', 'LMC_4', 'LMC_N']
+#df_presites = pd.DataFrame(index=om_list, columns=all_vfs)
+#df_outputs = pd.DataFrame(index=om_list, columns=all_vfs)
+
+# long form dataframe with multiindex (om x svf subtype) might be easier to use
+long = pd.DataFrame(index=pd.MultiIndex.from_product([om_list, all_vfs], names=['om', 'subtype']))
+
+# Uses neuron name to query list of connections since pretype combines svfs pairs
+for om in om_list:
+    for s in all_vfs:
         neuron_name = f"om{om}_{s}"
         if om == 'C2':
             neuron_name += '_nc'
+            
         links = lamina_links.loc[lamina_links['pre_neuron'] == neuron_name]
+        lmc_links = links.loc[[i for i, v in links['post_type'].items() if v[0:3] == 'LMC']]
         c_ids = links['cx_id'].unique()
-        df_presites.loc[om, s] = len(c_ids)
-        df_outputs.loc[om, s] = len(links)
+#         df_presites.loc[om, s] = len(c_ids)
+#         df_outputs.loc[om, s] = len(links)
+        
+        long.loc[(om, s), 'presites'] = len(c_ids)
+        long.loc[(om, s), 'syn'] = len(links)
+        long.loc[(om, s), 'lmc_syn'] = len(lmc_links)
+        for l in lmcs:
+            long.loc[(om, s), f'->{l}'] = len(links.loc[[i for i, v in links['post_type'].items() if v == l]])
+        if len(links) > 0 and s in svfs:
+            long.loc[(om, s), 'syn_multi'] = len(links)/len(c_ids)
+        elif len(links) > 0 and s not in svfs:
+            long.loc[(om, s), 'syn_multi'] = len(links)/len(c_ids)
+            display('Long photoreceptor has more than zero connections in the lamina. Check if this is real')
+            display(links)
+        else:
+            # When links are 0 (lvfs), multiplicity is NaN
+            long.loc[(om, s), 'syn_multi'] = np.nan
 
-
-df_presites
 
 # +
-av_multi = df_outputs/df_presites
-r1r4_m = [*av_multi['R1'].to_list(), *av_multi['R4'].to_list()]
-r2r5_m = [*av_multi['R2'].to_list(), *av_multi['R5'].to_list()]
-r3r6_m = [*av_multi['R3'].to_list(), *av_multi['R6'].to_list()]
+# Volume data from excel provided by AM. 
+# Contains both the volume of each PR's cell body, and the volume of just their rhabdomeres
+xl_dir = '~/Data/cell_rbd_volume.xlsx'
+full_df = pd.read_excel(xl_dir, header=[0, 1], index_col=0, nrows=9)
 
-r1r4_ntb = [*df_presites['R1'].to_list(), *df_presites['R4'].to_list()]
-r2r5_ntb = [*df_presites['R2'].to_list(), *df_presites['R5'].to_list()]
-r3r6_ntb = [*df_presites['R3'].to_list(), *df_presites['R6'].to_list()]
+# Each om has two columns: cell body and rhabdomere vol 
+rbd = dict.fromkeys(full_df.columns.levels[0])
+soma = dict.fromkeys(full_df.columns.levels[0])
+
+for om in full_df.columns.levels[0]:
+    rbd[om] = full_df.loc[:, (om, 'rbd')]
+    soma[om] = full_df.loc[:, (om, 'cell body')]
+    
+vol_df = pd.DataFrame(rbd)
+# E5 was damaged in our specimen so Anastasia took measurements from an E5 in a different wasp
+vol_df = vol_df.rename(mapper={"R7'": "R7p"}, axis=0).rename(mapper={"E5*": "E5"}, axis=1).T
+soma_df = pd.DataFrame(soma)
+soma_df = soma_df.rename(mapper={"R7'": "R7p"}, axis=0).rename(mapper={"E5*": "E5"}, axis=1).T
+# append this to the long form dataframe
+for om, row in vol_df.iterrows():
+    total = row.sum()
+    for s, v in row.items():
+        long.loc[(om, s), 'rbd_vol'] = v
+        long.loc[(om, s), 'rbd_frac'] = v/total
+        long.loc[(om, s), 'soma_vol'] = soma_df.loc[om, s]
 # -
 
-print(r2r5_m)
+# ## Summary of PR subtypes
+
+display('Average across ommatidia', long.groupby('subtype').mean().round(decimals=1))
+display('Standard deviation', long.groupby('subtype').std().round(decimals=1))
+
+# ## Compare (R2, R5) and (R1, R3, R4, R6)
+# - medial pair/lateral pairs (problem: for retinotopic space, medial means center of the face)
+# - major/minor?
 
 # +
-fig, ax = plt.subplots(1, 2, figsize=[8, 4])
-labels = ['R1R4', 'R2R5', 'R3R6']
-
-tb_data = [r1r4_ntb, r2r5_ntb, r3r6_ntb]
-m_data = [r1r4_m, r2r5_m, r3r6_m]
-
-bp0 = ax[0].boxplot(tb_data, patch_artist=True, labels=labels)
-bp1 = ax[1].boxplot(m_data, patch_artist=True, labels=labels)
-ax[0].set_title('Photoreceptor T-bar count')
-ax[1].set_title('Photoreceptor T-bar multiplicity')
-
-colors = ["#27787c", "#0dbc8b", "#7b9e00"]
-for bplot in (bp0, bp1):
-    for patch, c in zip(bplot['boxes'], colors):
-        patch.set_facecolor(c)
-fig.savefig("/mnt/home/nchua/Dropbox/200610_pr-count-multi.svg")
-# sns.distplot(r1r4_m, ax=ax, label='R1R4', kde=False, hist_kws={'fill':False, 'color':"#27787c"})
-# sns.distplot(r2r5_m, ax=ax, label='R2R5', kde=False, color="#0dbc8b")
-# sns.distplot(r3r6_m, ax=ax, label='R3R6', kde=False, color="#7b9e00")
+r1r4r3r6_ind = (slice(None),['R1', 'R3', 'R4', 'R6'])
+r2r5_ind = (slice(None),['R2', 'R5'])
 
 
+svf_comp =  pd.DataFrame(index=pd.MultiIndex.from_product([['R2, R5', 'R1, R3, R4, R6'], ['Mean', 'SD']],  
+                                                          names=['class', 'statistic']), columns=long.columns)
+svf_comp.loc[('R2, R5', 'Mean'), :] =  long.loc[r2r5_ind, :].mean()
+svf_comp.loc[('R2, R5', 'SD'), :] =  long.loc[r2r5_ind, :].std(ddof=0)
+svf_comp.loc[('R1, R3, R4, R6', 'Mean'), :] =  long.loc[r1r4r3r6_ind, :].mean()
+svf_comp.loc[('R1, R3, R4, R6', 'SD'), :] =  long.loc[r1r4r3r6_ind, :].std(ddof=0)
+
+display(svf_comp.round(decimals=1))
+
+# display(long.loc[r1r4r3r6_ind, :].mean())
+# display(long.loc[r2r5_ind, :].mean())
+# display(long.loc[r1r4r3r6_ind, :].std())
+# display(long.loc[r2r5_ind, :].std())
+# display(long.loc[r1r4r3r6_ind, :].mean() / long.loc[r2r5_ind, :].mean())
+# display(long.loc[r2r5_ind, :].mean() / long.loc[r1r4r3r6_ind, :].mean())
 # -
 
-fig, ax = plt.subplots(1, 3, sharex=True, sharey=True, figsize=[40, 20])
-plot_lin_fit(df_presites['R1'], df_presites['R4'], ax=ax[0])
-ax[0].set_title('Number of presynaptic terminals, R1 vs R4')
-ax[0].set_xlabel('R1')
-ax[0].set_ylabel('R4')
-plot_lin_fit(df_presites['R2'], df_presites['R5'], ax=ax[1])
-ax[1].set_title('Number of presynaptic terminals, R2 vs R5')
-ax[1].set_xlabel('R2')
-ax[1].set_ylabel('R5')
-plot_lin_fit(df_presites['R3'], df_presites['R6'], ax=ax[2])
-ax[2].set_title('Number of presynaptic terminals, R3 vs R6')
-ax[2].set_xlabel('R3')
-ax[2].set_ylabel('R6')
+# ## Look at the ratio of these measures, averaged across ommatidia
+
+# +
+om_ratio = dict()
+for om, rows in long.groupby('om'):
+    om_ratio.update({om: 1-(rows.loc[r1r4r3r6_ind, :].mean()/rows.loc[r2r5_ind, :].mean())})
+    
+ratio_df = pd.DataFrame(om_ratio).T
+display(ratio_df.mean())
+display(ratio_df.std())
+# -
+
+# ## Does rhabdomere volume correlate with:
+# - Number of photoreceptor terminals
+# - Number of outputs synapses 
+# - Number of Output synapses to LMCs 
+# - Average synapse multiplicity?
+
+# +
+x_vars = ['rbd_vol', 'rbd_frac', 'soma_vol']
+y_vars = ['presites', 'syn', 'lmc_syn', 'syn_multi']
+
+g = sns.pairplot(long, x_vars=x_vars, y_vars=y_vars, kind='reg')
+res_table = pd.DataFrame(index=pd.MultiIndex.from_product([x_vars, y_vars]), columns=['R-squared', 'p-value'])
+
+for this_x, this_y in itertools.product(x_vars, y_vars):
+    X = sm.add_constant(long[this_x])
+    Y = long[this_y]
+
+    model = sm.OLS(Y, X)
+    results = model.fit()
+    res_table.loc[(this_x, this_y), 'R-squared'] = results.rsquared
+    res_table.loc[(this_x, this_y), 'p-value'] = results.f_pvalue
+#     display((X, Y))
+#     display(f"R-squared: {results.rsquared}")
+#     display(f"p-value (t-stat): {results.pvalues}")
+display(res_table)
+
+# +
+x_vars = ['rbd_vol', 'rbd_frac', 'soma_vol']
+y_vars = ['->LMC_1', '->LMC_2', '->LMC_3', '->LMC_4']
+
+g = sns.pairplot(long, x_vars=x_vars, y_vars=y_vars, kind='reg')
+res_table = pd.DataFrame(index=pd.MultiIndex.from_product([x_vars, y_vars]), columns=['R-squared', 'p-value'])
+
+for this_x, this_y in itertools.product(x_vars, y_vars):
+    X = sm.add_constant(long[this_x])
+    Y = long[this_y]
+
+    model = sm.OLS(Y, X)
+    results = model.fit()
+    res_table.loc[(this_x, this_y), 'R-squared'] = results.rsquared
+    res_table.loc[(this_x, this_y), 'p-value'] = results.f_pvalue
+#     display((X, Y))
+#     display(f"R-squared: {results.rsquared}")
+#     display(f"p-value (t-stat): {results.pvalues}")
+display(res_table)
+# -
+
+# ## Are these correlations present *within* SVF classes?  
+
+# ### R1, R4, R3, and R6
+
+# +
+x_vars = ['rbd_vol', 'rbd_frac', 'soma_vol']
+y_vars = ['presites', 'syn', 'lmc_syn', 'syn_multi']
+
+data = long[long.index.get_level_values(1).isin(['R1', 'R3', 'R4', 'R6'])]
+g = sns.pairplot(data, x_vars=x_vars, y_vars=y_vars, kind='reg')
+res_table = pd.DataFrame(index=pd.MultiIndex.from_product([x_vars, y_vars]), columns=['R-squared', 'p-value'])
+
+for this_x, this_y in itertools.product(x_vars, y_vars):
+    X = sm.add_constant(data[this_x])
+    Y = data[this_y]
+
+    model = sm.OLS(Y, X)
+    results = model.fit()
+    res_table.loc[(this_x, this_y), 'R-squared'] = results.rsquared
+    res_table.loc[(this_x, this_y), 'p-value'] = results.f_pvalue
+#     display((X, Y))
+#     display(f"R-squared: {results.rsquared}")
+#     display(f"p-value (t-stat): {results.pvalues}")
+display(res_table)
+# -
+
+# ### R2 and R5
+
+# +
+x_vars = ['rbd_vol', 'rbd_frac', 'soma_vol']
+y_vars = ['presites', 'syn', 'lmc_syn', 'syn_multi']
+
+data = long[long.index.get_level_values(1).isin(['R2', 'R5'])]
+g = sns.pairplot(data, x_vars=x_vars, y_vars=y_vars, kind='reg')
+res_table = pd.DataFrame(index=pd.MultiIndex.from_product([x_vars, y_vars]), columns=['R-squared', 'p-value'])
+
+for this_x, this_y in itertools.product(x_vars, y_vars):
+    X = sm.add_constant(data[this_x])
+    Y = data[this_y]
+
+    model = sm.OLS(Y, X)
+    results = model.fit()
+    res_table.loc[(this_x, this_y), 'R-squared'] = results.rsquared
+    res_table.loc[(this_x, this_y), 'p-value'] = results.f_pvalue
+#     display((X, Y))
+#     display(f"R-squared: {results.rsquared}")
+#     display(f"p-value (t-stat): {results.pvalues}")
+display(res_table)
+# -
+
+sns.pairplot(long, x_vars=['rbd_vol', 'rbd_frac', 'soma_vol'], y_vars=['->LMC_1', '->LMC_2', '->LMC_3', '->LMC_4'])
+
 
 
 # +
-max_sites = df_presites.max().max()
+X = long['rbd_vol']
+Y = long['presites']
+sns.jointplot(X, Y)
+
+# OLS
+X = sm.add_constant(X)
+model = sm.OLS(Y, X)
+results = model.fit()
+
+display(results.summary())
+
+# +
+X = long['rbd_vol']
+Y = long['syn']
+sns.jointplot(X, Y)
+
+# OLS
+X = sm.add_constant(X)
+model = sm.OLS(Y, X)
+results = model.fit()
+
+display(results.summary())
+
+# +
+X = long['rdb_vol']
+Y = long['lmc_syn']
+sns.jointplot(X, Y)
+
+# OLS
+X = sm.add_constant(X)
+model = sm.OLS(Y, X)
+results = model.fit()
+
+display(results.summary())
+
+# +
+X = long['rbd_vol']
+Y = long['syn_multi']
+sns.jointplot(X, Y)
+
+# OLS
+X = sm.add_constant(X)
+model = sm.OLS(Y, X)
+results = model.fit()
+
+display(results.summary())
+# -
+
+# - Rhabdomere volume (both raw and fractional) is positively correlated with both number of SVF output terminals and synapses. Number of terminals is a slightly better predictor or rhabdomere volume, but the difference in R-squared is small. 
+# - SVF synapse multiplicity (number of synapses per terminal) is relatively constant; i.e. the number of SVF output synapses scales predictably with number of terminals. Because of this, neither has a stronger correlation with rhabdomere volume 
+
+# ## Does SVF volume correlate with number of outputs to the LMC subtypes?
+
+# +
+X = long['rbd_vol']
+Y = long['->LMC_1']
+sns.jointplot(X, Y)
+
+# OLS
+X = sm.add_constant(X)
+model = sm.OLS(Y, X)
+results = model.fit()
+
+display(results.summary())
+
+# +
+X = long['rbd_vol']
+Y = long['->LMC_2']
+sns.jointplot(X, Y)
+
+# OLS
+X = sm.add_constant(X)
+model = sm.OLS(Y, X)
+results = model.fit()
+
+display(results.summary())
+# -
+
+
+
+# +
+X = long['rbd_vol']
+Y = long['->LMC_3']
+sns.jointplot(X, Y)
+
+# OLS
+X = sm.add_constant(X)
+model = sm.OLS(Y, X)
+results = model.fit()
+
+display(results.summary())
+
+# +
+X = long['rbd_vol']
+Y = long['->LMC_4']
+sns.jointplot(X, Y)
+
+# OLS
+X = sm.add_constant(X)
+model = sm.OLS(Y, X)
+results = model.fit()
+
+display(results.summary())
+
+# +
+X = long['rbd_vol']
+Y = long['->LMC_N']
+sns.jointplot(X, Y)
+
+# OLS
+X = sm.add_constant(X)
+model = sm.OLS(Y, X)
+results = model.fit()
+
+display(results.summary())
+
+# +
+# av_multi = df_outputs/df_presites
+# r1r4_m = [*av_multi['R1'].to_list(), *av_multi['R4'].to_list()]
+# r2r5_m = [*av_multi['R2'].to_list(), *av_multi['R5'].to_list()]
+# r3r6_m = [*av_multi['R3'].to_list(), *av_multi['R6'].to_list()]
+
+# r1r4_ntb = [*df_presites['R1'].to_list(), *df_presites['R4'].to_list()]
+# r2r5_ntb = [*df_presites['R2'].to_list(), *df_presites['R5'].to_list()]
+# r3r6_ntb = [*df_presites['R3'].to_list(), *df_presites['R6'].to_list()]
+
+# +
+max_sites = long['presites'].max().max()
 
 sns.jointplot(df_presites['R1'], df_presites['R4'], xlim=(0, max_sites), ylim=(0, max_sites))
 
@@ -179,12 +428,7 @@ ax[3].set_ylabel('R3R6')
 
 #plot_lin_fit(df_lamina['R1R4->LMC_4'],df_lamina['R3R6->LMC_4'], ax, plot_kwargs={'color': 'r'}, scatter_kwargs={'color': 'r'})
 plt.show()
-# -
-sns.jointplot(df_lamina['R1R4->LMC_2'],df_lamina['R3R6->LMC_2'], color='k')
-
-sns.jointplot(df_lamina['R1R4->LMC_3'],df_lamina['R3R6->LMC_3'], color='k')
-
-# +
+# + {}
 # fig, axes = plt.subplots(3, 1, figsize=[20, 30])
 # ax = axes.flatten()
 # cm = get_cmap('coolwarm')
@@ -207,22 +451,22 @@ sns.jointplot(df_lamina['R1R4->LMC_3'],df_lamina['R3R6->LMC_3'], color='k')
 # +
 fig, axes = plt.subplots(2, 2, sharex=True, sharey=True, figsize=[15, 15])
 ax = axes.flatten()
-plot_lin_fit(df_lamina['R2R5->LMC_1'], df_lamina['R1R4->LMC_1'] + df_lamina['R3R6->LMC_1'], 
+plot_lin_fit(2 * df_lamina['R2R5->LMC_1'], df_lamina['R1R4->LMC_1'] + df_lamina['R3R6->LMC_1'], 
              ax[0], plot_kwargs={'color': 'r'}, scatter_kwargs={'c': 'k', 'marker':'x'})
 ax[0].set_title('Number of inputs to L1')
 ax[0].set_xlabel('R2R5')
 ax[0].set_ylabel('R1R4 + R3R6')
-plot_lin_fit(df_lamina['R2R5->LMC_2'], df_lamina['R1R4->LMC_2'] + df_lamina['R3R6->LMC_2'], 
+plot_lin_fit(2 * df_lamina['R2R5->LMC_2'], df_lamina['R1R4->LMC_2'] + df_lamina['R3R6->LMC_2'], 
              ax[1], plot_kwargs={'color': 'b'}, scatter_kwargs={'c': 'k', 'marker':'x'})
 ax[1].set_title('Number of inputs to L2')
 ax[1].set_xlabel('R2R5')
 ax[1].set_ylabel('R1R4 + R3R6')
-plot_lin_fit(df_lamina['R2R5->LMC_3'], df_lamina['R1R4->LMC_3'] + df_lamina['R3R6->LMC_3'], 
+plot_lin_fit(2 * df_lamina['R2R5->LMC_3'], df_lamina['R1R4->LMC_3'] + df_lamina['R3R6->LMC_3'], 
              ax[2], plot_kwargs={'color': 'g'}, scatter_kwargs={'c': 'k', 'marker':'x'})
 ax[2].set_title('Number of inputs to L3')
 ax[2].set_xlabel('R2R5')
 ax[2].set_ylabel('R1R4 + R3R6')
-plot_lin_fit(df_lamina['R2R5->LMC_4'].dropna(), df_lamina['R1R4->LMC_4'].dropna() + df_lamina['R3R6->LMC_4'].dropna(), 
+plot_lin_fit(2 * df_lamina['R2R5->LMC_4'].dropna(), df_lamina['R1R4->LMC_4'].dropna() + df_lamina['R3R6->LMC_4'].dropna(), 
              ax[3], plot_kwargs={'color': 'y'}, scatter_kwargs={'c': 'k', 'marker':'x'})
 ax[3].set_title('Number of inputs to L4')
 ax[3].set_xlabel('R2R5')

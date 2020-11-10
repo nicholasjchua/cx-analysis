@@ -1,13 +1,15 @@
-from typing import Dict, Tuple, Union, List
+from typing import Dict, Tuple, Union, List, Iterable
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
+import pandas as pd
 import networkx as nx
 from pprint import pprint
 
-def hexplot(node_data: Dict, edge_data: Dict=None, ax: plt.Axes=None,
-            scale_factor: float=0.1, n_rgba: Tuple=(0.8, 0.8, 0.8, 0.5),
-            e_colour='r'):
+def hexplot(node_data: Union[Dict, pd.DataFrame], 
+            node_lim: Iterable=None, c: Iterable=None,
+            edge_data: Dict=None, edge_c='r',  # EDGE DATA NOT IMPLEMENTED YET
+            ax: plt.Axes=None, scale_factor: float=0.1):
     """
     Plot a map of the hexagonal lattice of the megaphragma compound eye. Each ommatidium will be labelled and coloured
     according to the strings and (r, g, b, a) values passed with node_data.
@@ -21,6 +23,12 @@ def hexplot(node_data: Dict, edge_data: Dict=None, ax: plt.Axes=None,
     :param e_colour: Default edge colour (if edge_data is used)
     :return:
     """
+    if c is None:
+        c = (0.2, 0.2, 0.2, 1)
+        
+    if isinstance(node_data, pd.DataFrame):
+        node_data = series_to_node_data(node_data, c=c, node_lim=node_lim)
+    
     G, pos = generate_lattice()
     nx.set_node_attributes(G, pos, name='pos')
     # Handle labels/data
@@ -33,7 +41,7 @@ def hexplot(node_data: Dict, edge_data: Dict=None, ax: plt.Axes=None,
         name_to_ind.update({this_om: tuple(nx_ind)})
 
         nd = node_data.get(this_om, {})
-        node_colours.append(nd.get('colour', n_rgba))
+        node_colours.append(nd.get('colour', c))
         node_outline.append(nd.get('outline', '-'))
         node_labels.update({nx_ind: nd.get('label', this_om)})
 
@@ -74,6 +82,50 @@ def generate_lattice() -> Tuple:
     #G = nx.set_node_attributes(G, pos, name='pos')
 
     return G, pos
+
+
+def series_to_node_data(X: object, c: Iterable, node_lim: Iterable=None, cmap_center: str=None) -> Dict:
+    """
+    series_to_node_data
+    This function is called when hexplot() receives a pandas series instead of 
+    a dict for node_data. The different options for the color transfer function 
+    need to be tested
+    """
+    
+    from matplotlib.colors import LinearSegmentedColormap
+    
+    if len(X.columns) == 1:
+        var_name = X.columns[0]
+    else:
+        raise Warning('DataFrame has too many variable columns, idk which to plot')
+    
+    if cmap_center is None and X.min().values >= 0:
+        cm = LinearSegmentedColormap.from_list(name='mycm', colors=[(1.0, 1.0, 1.0), c])
+        if node_lim is None:
+            max_val = X.max()
+        else:
+            max_val = node_lim[1]
+        trans_vals = (X - X.min()) / (max_val - X.min())  # 0 - 1
+    ### NOT TESTED ###
+    elif cmap_center is None:
+        cm = LinearSegmentedColormap.from_list(name='mycm', colors=[c[0], (1.0, 1.0, 1.0), c[1]])
+        abs_max = X.abs().max()
+        trans_vals = ((X / abs_max) + 1)/2
+    elif (cmap_center in ['mean', 'average']):
+        cm = LinearSegmentedColormap.from_list(name='mycm', colors=[c[0], (1.0, 1.0, 1.0), c[1]])
+        abs_max = X.abs().max()
+        trans_vals = (X/X.mean()) - 0.5
+    ### NOT TESTED ###
+    else:
+        raise Warning('Something went wrong')
+        
+    node_data = dict()
+    for om, val in X.iterrows():
+        this_node = {'colour': cm(trans_vals.loc[om, var_name]),
+                     'label': f"{val[var_name]: .2f}"}
+        node_data[om] = this_node
+            
+    return node_data
 
 
 def get_ret_coords(position: Tuple):

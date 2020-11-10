@@ -15,21 +15,22 @@
 
 # # Characterising different lamina connections 
 #
-# - Are there classes of connections that are more invariant than others?
-# - Are there components of the lamina circuit that reflect differences in optics or retinotopic position?
-# - Which aspects of the lamina circuit vary stochastically, or in ways unexplained by our data?
+# Is there a useful way to group the different connection types by the variability of their counts? 
+# - Fixed/invariant -> Observed in most circuits, mean counts high/var low
+# - Retinotopically-dependent -> High variance, but the variance of these connection counts decrease 
+# - Stochastic/variant/noise
 #
 # We observed many of the possible 'pre->post' permutations that can be formed between each lamina subtype
-# - Assumption: A subset of the connections observed do not contribute to the function of the circuit -- . We might be able to break this down further: noise connections observed due to methodological error vs wiring error.
-# - Assumption: Connections that perform an essential function would be consistently observed among circuits compared to connections resulting from methodological/wiring errors. 
-# - Assumption: Connections that perform an essential function would be strongly connected via more synapses.
+# 1. Neurons and their synapses organize in ways that expend more resources to form connections that are necessary for function, while minimizing errors that expend limited synaptic contact area or have a negative influence on performance. 
+# 2. Under normal circumstances, costs associated with the amount of space occupied by a system puts constrains on network architecture and synaptic connectivity. For Megaphragma, an insect that is subject to extreme evolutionary pressure for miniaturization, space constraints could play a dominant role in the design of its neural circuits. 
+# 3. 
+#
+# If a given connection (between a pre->post pair of neurons) is facilitated by many synapses, this connection is more likely to be a physiologically meaningful feature of the system compared to a different connection with fewer synapses. (the high metabolic/space cost of maintaining many synapses) 
+# 2. If a given connection is observed throughout many reconstructions of the same circuit, this connection is more likely to be physiologically meaningful
 #
 # 1. Calculate (across ommatidia) correlation matrix containing an element for each pairwise correlation between each connection count
 # 2. Sort rows and columns of correlation matrix to minimize distance between each connection type's vector of correlation coefficients
 # 3. Present a hierachy of connection types with similar correlation vectors 
-#
-#
-# 4. Is the correlation structure different when r is computed within retinotopic clusters
 
 # +
 import numpy as np
@@ -44,14 +45,12 @@ from src.dataframe_tools import assemble_cxvectors
 from vis.hex_lattice import hexplot
 from vis.colour_palettes import subtype_cm
 from vis.fig_tools import linear_cmap
+# -
 
-# +
 tp = '200914'
 linkdf = pd.read_pickle(f'~/Data/{tp}_lamina/{tp}_linkdf.pickle')
 cxdf = pd.read_pickle(f'~/Data/{tp}_lamina/{tp}_cxdf.pickle')
 
-cxvecs = assemble_cxvectors(linkdf)   # each ommatidium has a vector of the different connection counts
-# -
 
 # ## Connections observed in the lamina
 # - When opposite pairs of short photoreceptors are combined (i.e. R1R4->L3 = R1->L3 + R4->L3), there are 13 classes of cells that participate in the lamina circuit
@@ -60,17 +59,70 @@ cxvecs = assemble_cxvectors(linkdf)   # each ommatidium has a vector of the diff
 # - Connections that are entirely absent in some ommatidium (e.g. R1R4->eLMC_4) can still be strongly connected (large average synapse count despite many zeros) 
 
 # +
-st_before = cxvecs.columns  # hold on to all connection types incl. those with sub-threshold averages
-display(f"Number of observed connections (unfiltered): {len(st_before)}")
-mean_thresh = 1.0
-cxvecs = cxvecs.loc[:, cxvecs.mean() >= 1.0]
-display(f"Number of observed connections (mean >= {mean_thresh}): {len(cxvecs.columns)}")
-display(f"Number of subtypes: {len(set([*linkdf['pre_type'].unique(), *linkdf['post_type'].unique()]))}")
+cxvecs = assemble_cxvectors(linkdf).astype(float)   # each ommatidium has a vector of the different connection counts
+# Default args: external=True, interom connections included; excl_unknowns=True, filter cxs w unknown partner
+cxs_before = cxvecs.columns  # hold on to all connection types incl. those with sub-threshold averages
+nan_missing_L4s = True
 
+if nan_missing_L4s:
+    L4_cx = [c for c in cxvecs.columns if (c[-5: len(c)] == 'LMC_4')]
+    cxvecs.loc[['B0', 'C1', 'D2', 'E4', 'E5', 'E6', 'E7'], L4_cx] = np.nan
+
+display(f"Number of connections observed (all): {len(cxs_before)}")
+mean_thresh = 1.0
+cxvecs = cxvecs.loc[:, cxvecs.mean() >= mean_thresh]
+
+
+display(f"Number of connections observed (where mean count >= {mean_thresh}): {len(cxvecs.columns)}")
+display(f"Presyn subtypes: {linkdf['pre_type'].unique()}")
+display(f"Postsyn subtypes: {linkdf['post_type'].unique()}")
+display(f"Number of different connections: {len(cxvecs.columns)}")
 cm = subtype_cm() # a dict
 # -
 
-cxvecs.columns
+c = 'LMC_2->LMC_4'
+c[-5:len(c)]
+
+# +
+summary = pd.DataFrame([cxvecs.mean(), cxvecs.var(), cxvecs.std()]).T
+summary = summary.rename(columns={0: 'mean', 1: 'var', 2: 'sd'})
+summary = summary.rename_axis('cx')
+
+summary['cv'] = summary['sd'] / summary['mean']
+summary['ff'] = summary['var'] / summary['mean']
+
+#fig, ax = plt.subplots()
+#ax.set_title('fano')
+sns.jointplot(data=summary, x='mean', y='var', marker='+')
+# -
+
+display(summary.filter(axis=0, like='->eLMC').sort_values(by='cx', ascending=True))
+display(summary.filter(axis=0, like='centri->'))
+
+# +
+from itertools import product
+svfs = ['R1R4', 'R2R5', 'R3R6']
+lmcs = ['LMC_1', 'LMC_2', 'LMC_3', 'LMC_4']
+these_cx = [pre + '->' + post for pre, post in product(svfs, lmcs)]
+
+
+svf_lmc = cxvecs.filter(items=these_cx)
+combined_svf = pd.DataFrame()
+cp_ratio = pd.DataFrame()
+
+for l in lmcs:
+    combined_svf[f'R1R4+R3R6->{l}'] = svf_lmc[f'R1R4->{l}'] + svf_lmc[f'R3R6->{l}']
+    combined_svf[f'R2R5->{l}'] = svf_lmc[f'R2R5->{l}']
+    cp_ratio[l] = (2.0 * combined_svf[f'R2R5->{l}'])/ combined_svf[f'R1R4+R3R6->{l}']
+# -
+
+combined_svf.describe()
+
+cp_ratio.describe()
+
+sns.distplot(summary['cv'])
+
+sns.distplot(summary['ff'])
 
 # ## Clustering the correlation matrix of all connections including those between cartridges
 
