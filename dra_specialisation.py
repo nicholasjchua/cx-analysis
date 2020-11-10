@@ -32,8 +32,7 @@ from scipy.stats import mannwhitneyu
 import statsmodels.api as sm
 
 from src.utils import index_by_om
-from vis.colour_palettes import subtype_cm
-from vis.fig_tools import linear_cmap
+from vis.fig_tools import linear_cmap, subtype_cm
 from vis.hex_lattice import hexplot
 
 import matplotlib as mpl
