@@ -12,7 +12,8 @@ def hexplot(node_data: Union[Dict, pd.DataFrame],
             ax: plt.Axes=None, scale_factor: float=0.1):
     """
     Plot a map of the hexagonal lattice of the megaphragma compound eye. Each ommatidium will be labelled and coloured
-    according to the strings and (r, g, b, a) values passed with node_data.
+    according to the strings and (r, g, b, a) values passed with node_data. This will also take a 1-col dataframe indexed by om
+    TODO: fix dataframe input options, type of cmap as an arg, use plt.scatter instead of all the networkx functions? 
     :param node_data: Dict, {om: {'label': str,
                                  {'outline': matplotlib line spec, e.g. '-',
                                  {'colour':  (rgba)}}
@@ -27,7 +28,7 @@ def hexplot(node_data: Union[Dict, pd.DataFrame],
         c = (0.2, 0.2, 0.2, 1)
         
     if isinstance(node_data, pd.DataFrame):
-        node_data = series_to_node_data(node_data, c=c, node_lim=node_lim)
+        node_data = __from_pandas(node_data, c=c, node_lim=node_lim)
     
     G, pos = generate_lattice()
     nx.set_node_attributes(G, pos, name='pos')
@@ -37,7 +38,7 @@ def hexplot(node_data: Union[Dict, pd.DataFrame],
     node_labels = {}
     name_to_ind = {}
     for nx_ind, data in G.nodes(data=True):
-        this_om = get_ret_coords(data['pos'])
+        this_om = hex_to_om(data['pos'])
         name_to_ind.update({this_om: tuple(nx_ind)})
 
         nd = node_data.get(this_om, {})
@@ -54,7 +55,6 @@ def hexplot(node_data: Union[Dict, pd.DataFrame],
     nx.draw(G, pos, alpha=1.0, edge_list=[], node_color=node_colours, node_size=1400*4,
             node_shape='H', linewidth=5.0, ax=ax)
     nx.draw_networkx_labels(G, pos, labels=node_labels, edge_list=[], font_size=14, ax=ax)
-
 
 
 def generate_lattice() -> Tuple:
@@ -84,12 +84,12 @@ def generate_lattice() -> Tuple:
     return G, pos
 
 
-def series_to_node_data(X: object, c: Iterable, node_lim: Iterable=None, cmap_center: str=None) -> Dict:
+def __from_pandas(X: object, c: Iterable, node_lim: Iterable=None, cmap_center: str=None) -> Dict:
     """
-    series_to_node_data
-    This function is called when hexplot() receives a pandas series instead of 
-    a dict for node_data. The different options for the color transfer function 
-    need to be tested
+    __from_pandas
+    This function is called when hexplot() receives a pandas DataFrame instead of 
+    a dict for node_data. Right now, the df has to be indexed by 'om'. 
+    The different options for the color transfer functions need to be tested
     """
     
     from matplotlib.colors import LinearSegmentedColormap
@@ -128,16 +128,29 @@ def series_to_node_data(X: object, c: Iterable, node_lim: Iterable=None, cmap_ce
     return node_data
 
 
-def get_ret_coords(position: Tuple):
+def hex_to_om(xy: Iterable) -> str:
     """
-    Convert figure coordinates to a letter-digit string corresponding to the eye coordinates of an ommatidia
+    Convert a set of figure coordinates to a letter-digit ommatidia ID
     :param position: 2-tuple of floats indicating the ommatidia's figure coordinates
     :return col_row: str, e.g. 'B2'
     """
-    col_num = np.rint(4 - position[0]/(np.sqrt(3.0)/2.0))  # A is most right, so this evaluates to 0
-    row_num = int(np.floor(position[1]) + col_num/2.0)
+    assert(len(xy) == 2)
+    col_num = np.rint(4 - (2.0/np.sqrt(3.0) * xy[0]))  # A is most anterior, evaluates to 0
+    row_num = int(np.floor(xy[1]) + col_num/2.0)
     col_letter = chr(int(col_num) + 65)
     return str(col_letter) + str(row_num)
+
+
+def om_to_hex(om: str) -> Tuple:
+    """
+    Convert letter-digit ommatidia ID (e.g. 'A4') to figure coordinates
+    :param position: 2-tuple of floats indicating the ommatidia's figure coordinates
+    :return col_row: str, e.g. 'B2'
+    """
+    assert(len(om) == 2)
+    x = np.sqrt(3.0)/2.0 * (ord(om[0]) - 65.0) + 4.0
+    y = int(om[1]) - (0.5 * ord(om[0]))
+    return x, y
 
 
 def scale_distance_between(positions, scalar):
