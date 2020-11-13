@@ -28,8 +28,7 @@ import itertools
 import statsmodels.api as sm
 
 from vis.hex_lattice import hexplot
-from vis.colour_palettes import subtype_cm
-from vis.fig_tools import linear_cmap
+from vis.fig_tools import linear_cmap, subtype_cm
 
 import matplotlib as mpl
 #mpl.rc('font', size=14)

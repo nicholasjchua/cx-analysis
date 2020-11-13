@@ -13,9 +13,10 @@
 #     name: wasp
 # ---
 
-# # Optical variability between ommatidia
-# - View ommatidia optical features measured by AM and team 
-# - Perform clustering on these features 
+# # Optical variability of ommatidia
+# - View ommatidia measurements from AM and team 
+# - Calculate optical parameters from physical measurements
+# - Perform clustering on these physical features, compare with lamina circuit clustering
 
 # +
 import numpy as np
@@ -25,89 +26,85 @@ import matplotlib.pyplot as plt
 
 from src.utils import index_by_om
 from src.dataframe_tools import assemble_cxvectors
-from vis.colour_palettes import subtype_cm
-from vis.fig_tools import linear_cmap
+from vis.fig_tools import linear_cmap, subtype_cm
 from vis.hex_lattice import hexplot
-# -
-
-# R7 and R7p rhabdomere twist data
-sevens_df = pd.read_csv('~/Data/r7r7p_microvilli_sd.csv', index_col=0).T
-#display(df)
-# Connectivity data designations
-dra_om = ['A4', 'A5', 'B5', 'B6', 'C5', 'C6', 'D6', 'D7', 'E6', 'E7']
-ndra_om = [str(o) for o in sevens_df.index if o not in dra_om]
-
-# +
-fig, ax = plt.subplots(1, 2, figsize=(24, 10))
-max_val =  sevens_df.max().max()
-min_val = sevens_df.min().min()
-#cm = subtype_cm()
-lincm = linear_cmap(n_vals=100, max_colour='r')
-
-r7_twist = dict()
-r7p_twist = dict()
-for om, vals in sevens_df.iterrows():
-    r7_twist[om] = {'colour': lincm((vals['R7 SD'] - min_val)/max_val),
-                   'label': vals['R7 SD']}
-    r7p_twist[om] = {'colour': lincm((vals["R7' SD"] - min_val)/max_val),
-                   'label': vals["R7' SD"]}
-
-hexplot(node_data=r7_twist, ax=ax[0])
-hexplot(node_data=r7p_twist, ax=ax[1])
-
-ax[0].set_title('R7 Rhabdomere twist \n(standard deviation of microvilli angle)')
-ax[1].set_title("R7' Rhabdomere twist \n(standard deviation of microvilli angle)")
 # -
 
 optics_df = pd.read_excel('~/Data/data for ligh prop.xlsx', index_col=0)
 optics_df = optics_df.iloc[:29] # remove last two lines of excel file
 #display(optics_df)
 
+dra_om = ['A4', 'A5', 'B5', 'B6', 'C5', 'C6', 'D6', 'D7', 'E6', 'E7']
+ndra_om = [str(o) for o in optics_df.index if o not in dra_om]
+
+# ## Lens calculations
+# ### Measurements (all $\mu{m}$)
+# - Lens: Outer radius of curvature, $r_1$
+# - Lens: Inner radius of curvature, $r_2$
+# - Lens: thickness, $t$
+# - Lens: diameter, $D$
+# - Rhabdom: distal diameter, $D_r$
+# - Measurements also taken for the length and distal width of the crystalline cone, and the proximal diameter of the rhabdom (not used for the following calculations) 
+#
+# ### Calculations
+# - We used the refractive indices of the honey bee lens ($n_l$) and crystalline cone ($n_c$), from Valera & Wiitanen (1970)
+# - Optical power ($\mu{m}^{-1}$) of the diopteric apparatus (lens + crystalline cone), $P$, calculated using the thick lens formula (Fundamentals of Optics, Jenkins & White, p.84, 2001): 
+# $$P = P_1 + P_2 - \frac{t}{n_l} P_1 P_2$$
+#     - $P_1 = \frac{n_l - 1.0}{r_1}$, power from outer lens surface
+#     - $P_2 = \frac{n_c - n_l}{r_2}$, power from inner lens surface  
+# - Focal length of the object ($\mu{m}$): $f = 1/P$
+# - Focal length of the image ($\mu{m}$): $f' = {n_c}/P$
+# - F-number: $F = f/D$
+# - Acceptance angle of the ommatidium (radians), $\Delta\rho_s$, is approximated by diffraction at the lens,  $\Delta\rho_l$ and the geometry of the distal rhabdom tip and the lens, $\Delta\rho_r$ (Snyder, 1979):
+# $$\Delta\rho_s = \sqrt{{\Delta\rho_l}^2 + {\Delta\rho_r}^2}$$
+#     - $\Delta\rho_l = \lambda/D$, where we set $\lambda$ to 0.5 $\mu{m}$ (green monochromatic light)
+#     - $\Delta\rho_r = D_{r}/f$
+#
+
+
+
 # +
 r1 = optics_df['outer curvature']
 r2 = -1 * optics_df['inner curvature']
 t = optics_df['lense thickness']
-A = optics_df['facet diameter (stack)']
-Drh = optics_df['D rhabdom dist.']
+D = optics_df['facet diameter (stack)']
+Dr = optics_df['D rhabdom dist.']
 
 # Refractive indices from Apis mellifera (Varela & Wiitanen 1970)
 # n = 1 # air
 nl = 1.452 # lens
 nc = 1.348 # cone
-# Power = P1 + P2 + P3 (thick lens formula) 
-# IN MICROMETERS
+# lens power IN MICROMETERS
 p1 = (nl - 1.0)/r1 # interface air->lens 
 p2 = (nc - nl)/r2 # interface lens->cone
-p3 = (-t/nl)*(p1*p2)  #?
-p = p1 + p2 + p3
-# Focal length of lens and image (n/p)
+p3 = (t/nl)*p1*p2  # thickness 'correction'
+p = p1 + p2 - p3
+# Focal length object and image (n/p)
 f = 1.0/p
 fi = nc/p
 # F-number (ratio of lens diameter to focal length)
-FN = A/f
-# Acceptance angle of rhabdom (ray)
-# distal rhabdomere diameter / focal length
-aa = Drh/f
-
-# Half-width of airy disk
-lam = 0.5 # assuming green light with wavelength=0.5 microns
-hw = lam/A
+F = D/f
+# Acceptance angle
+rho_l = 0.5/D # angular sens. due to diffraction at the lens, lambda=0.5
+rho_r = Dr/f # angular sens. due to geometry of rhabdom tip
+# 'simple' acceptance angle formula 
+rho = (rho_l ** (2.0) + rho_r ** (2.0)) ** (0.5)
 
 optics_df['f'] = f 
-optics_df['fi'] = fi
-optics_df['power'] = p
-optics_df['F-number'] = FN
-optics_df['acceptance_angle'] = aa
-optics_df['half-width'] = hw
-optics_df['interom-angle'] = 
-
-#display(optics_df.iloc[:, -6:])
-
-#### SAVE CALCULATIONS ####
-#optics_df.to_pickle('~/Data/200713_optics_calcs.pkl')
+optics_df['f-image'] = fi
+optics_df['P'] = p
+optics_df['F-number'] = F
+optics_df['diffraction-rho'] = rho_l
+optics_df['geometric-rho'] = rho_r
+optics_df['rho'] = rho
 # -
 
-display(optics_df)
+# - Diffraction by the facet lens depends on light wavelength, lens diameter, and its focal distance
+# - Male blowfly, Calliphora (Stavenga 1990): D=20-40 $\mu{m}$; $f/D$ remains relatively constant despite range of D, giving $F = 2.0{\pm}0.2$ (based on optical measurements); 
+
+optics_df['mesh_diameter'] = 
+
+display(optics_df.loc[:,'facet diameter (stack)'])
 
 # +
 fig, ax = plt.subplots(1, 2, figsize=[20, 10])

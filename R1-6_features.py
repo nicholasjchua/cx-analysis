@@ -27,7 +27,7 @@ import statsmodels.api as sm
 
 from src.dataframe_tools import extract_connector_table
 from src.cartridge_metadata import ret_clusters
-from vis.colour_palettes import subtype_cm
+from vis.fig_tools import subtype_cm
 
 import matplotlib as mpl
 import matplotlib.gridspec as gridspec

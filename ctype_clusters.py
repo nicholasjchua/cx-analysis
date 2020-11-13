@@ -43,8 +43,7 @@ from sklearn.linear_model import LinearRegression
 
 from src.dataframe_tools import assemble_cxvectors
 from vis.hex_lattice import hexplot
-from vis.colour_palettes import subtype_cm
-from vis.fig_tools import linear_cmap
+from vis.fig_tools import linear_cmap, subtype_cm
 # -
 
 tp = '200914'

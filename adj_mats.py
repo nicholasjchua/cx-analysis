@@ -16,9 +16,7 @@
 # # Adjacency matrices 
 # A quick way to look at:
 # - the average adjacency matrix of our lamina circuits 
-# - the SD of the average adjacency matrix 
-# - adjacency matrices of individual lamina circuits
-#
+# - the variance of each type of synaptic connection
 
 # +
 import numpy as np
@@ -30,8 +28,7 @@ import itertools
 from sklearn.linear_model import LinearRegression
 
 from vis.hex_lattice import hexplot
-from vis.colour_palettes import subtype_cm
-from vis.fig_tools import linear_cmap
+from vis.fig_tools import linear_cmap, subtype_cm
 
 # +
 tp = '200914'
@@ -83,15 +80,8 @@ for o in ommatidia:
     
     display(f"Ommatidium {o}")
     display(adj_mats[o])
-    display("~~Error relative to SD~~")
-    display((adj_err[o]/adj_sd).round(decimals=2))
-#     #display(adj_mats[o].astype(int))
-#     display("~~ABS ERROR~~")
-#     display("(counts - mean).abs().sum(across_pretypes)")
-#     display(adj_err[o].abs().sum(axis=0))
-#     display("~~ERROR~~")
-#     display("(counts - mean).sum(across_pretypes)")
-#     display(adj_err[o].sum(axis=0))
+#     display("~~Error relative to SD~~")
+#     display((adj_err[o]/adj_sd).round(decimals=2))
 
     display(f"~"*80)
 
