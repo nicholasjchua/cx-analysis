@@ -9,9 +9,9 @@ connectome.py
 Connectome is a class representing a collection of neurons and the synaptic connections between them.
 A Connectome is initialized with a config file that details how the neurons should be categorized, the 
 number of neurons associated with each subtype or group, along with other options related to filtering
-or representing this data. Connectome will initialize a Skeleton object for each neuron, which perform
-the API requests to Catmaid. The Connectome object can be saved as a pkl file. This can also call 
-methods in dataframe_tools.py to assemble/save various summaries of connectivity data.   
+and sorting connections. Connectome will initialize a Skeleton object for each neuron, which perform
+the API requests to Catmaid. The Connectome object can be saved as a pkl file. 
+methods in dataframe_tools.py Various summaries (dar
 """
 class Connectome:
 

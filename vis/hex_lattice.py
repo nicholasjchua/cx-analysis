@@ -6,10 +6,10 @@ import pandas as pd
 import networkx as nx
 from pprint import pprint
 
-def hexplot(node_data: Union[Dict, pd.DataFrame], 
-            node_lim: Iterable=None, c: Iterable=None,
+def hexplot(node_data: Union[Dict, pd.DataFrame], decimals: int=0, 
+            node_lim: Iterable=None, c: Iterable=None, lc: str='k',
             edge_data: Dict=None, edge_c='r',  # EDGE DATA NOT IMPLEMENTED YET
-            ax: plt.Axes=None, scale_factor: float=0.1):
+            ax: plt.Axes=None, scale_factor: float=0.015):
     """
     Plot a map of the hexagonal lattice of the megaphragma compound eye. Each ommatidium will be labelled and coloured
     according to the strings and (r, g, b, a) values passed with node_data. This will also take a 1-col dataframe indexed by om
@@ -24,7 +24,7 @@ def hexplot(node_data: Union[Dict, pd.DataFrame],
     :param e_colour: Default edge colour (if edge_data is used)
     :return:
     """
-    if c is None:
+    if c is None: # default color
         c = (0.2, 0.2, 0.2, 1)
         
     if isinstance(node_data, pd.DataFrame):
@@ -40,21 +40,95 @@ def hexplot(node_data: Union[Dict, pd.DataFrame],
     for nx_ind, data in G.nodes(data=True):
         this_om = hex_to_om(data['pos'])
         name_to_ind.update({this_om: tuple(nx_ind)})
-
         nd = node_data.get(this_om, {})
+        label = nd.get('label', this_om)
+        
         node_colours.append(nd.get('colour', c))
         node_outline.append(nd.get('outline', '-'))
+        
         node_labels.update({nx_ind: nd.get('label', this_om)})
 
     if ax is None:
         ax = plt.gca()
-    ax.set_aspect('equal')
 
     pos = scale_distance_between(pos, scale_factor)
 
-    nx.draw(G, pos, alpha=1.0, edge_list=[], node_color=node_colours, node_size=1400*4,
-            node_shape='H', linewidth=5.0, ax=ax)
-    nx.draw_networkx_labels(G, pos, labels=node_labels, edge_list=[], font_size=14, ax=ax)
+    nx.draw(G, pos, alpha=1.0, edge_list=[], node_color=node_colours, node_size=scale_factor * 18000,
+            node_shape='H', linewidth=1.0, ax=ax)
+    nx.draw_networkx_labels(G, pos, labels=node_labels, edge_list=[], font_size=5, font_color=lc, ax=ax)
+#     ax.set_xmargin(0)
+#     ax.set_ymargin(0)
+    ax.set_aspect('equal')
+    
+    return ax
+
+
+def hexplot_TEST(node_data, decimals: int=None, 
+            node_lim: Iterable=None, c: object=None, lc: str='k',
+            edge_data: Dict=None, edge_c='r',  # EDGE DATA NOT IMPLEMENTED YET
+            ax: plt.Axes=None, scale_factor: float=0.015):
+    """
+    Plot a map of the hexagonal lattice of the megaphragma compound eye. Each ommatidium will be labelled and coloured
+    according to the strings and (r, g, b, a) values passed with node_data. This will also take a 1-col dataframe indexed by om
+    TODO: fix dataframe input options, type of cmap as an arg, use plt.scatter instead of all the networkx functions? 
+    :param node_data: Dict, {om: {'label': str,
+                                 {'outline': matplotlib line spec, e.g. '-',
+                                 {'colour':  (rgba)}}
+    :param edge_data:
+    :param ax: plt.Axes, if None, will plot to current Axis
+    :param scale_factor: float, controls the spacing between nodes
+    :c: Default node colour (if node_data: colours is None)
+    :param e_colour: Default edge colour (if edge_data is used)
+    :return:
+    """
+    if c == None: # default color
+        default_c = (0.2, 0.2, 0.2, 1)
+    else:
+        default_c = c
+        
+    if isinstance(node_data, pd.DataFrame):
+        node_data = __from_pandas(node_data, c=c, node_lim=node_lim)
+        
+    if ax == None:
+        ax = plt.gca()
+        
+    om_list = sorted([str(om) for om in node_data.keys()])
+    pos = [om_to_hex(o) for o in om_list] # 2D figure coords of each om
+    node_colours = []#dict.fromkeys(om_list)
+    node_outline = []#dict.fromkeys(om_list)
+    node_labels = []#dict.fromkeys(om_list)
+        
+    #name_to_ind = 
+    for om, xy in zip(om_list, pos):
+        
+        if node_data[om].get('label') == None:
+            label = om
+        elif type(node_data.get('label')) == float and decimal != None:
+            label = str(round(label, decimals))
+        else:
+            label = str(label)
+                        
+        if (node_data[om].get('colour') == None):
+            fill_c = default_c
+        else:
+            fill_c = node_data[om].get('colour')
+            
+        x = xy[0] * 0.01
+        y = xy[1] * 0.01
+        
+        ax.scatter(xy[0], xy[1], marker='H', c=fill_c, s=100)
+        ax.annotate(label, xy, fontsize=8, color='w', ha='center', va='center')
+        
+        
+    #ax.set_xlim((-30, 4))
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    #plt.axis('off')
+    ax.set_aspect('equal')
+    
+    return ax
+
+
 
 
 def generate_lattice() -> Tuple:

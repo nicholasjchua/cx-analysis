@@ -27,10 +27,18 @@ import seaborn as sns
 from sklearn.decomposition import PCA
 import itertools
 
-from vis.colour_palettes import subtype_cm
+from vis.fig_tools import subtype_cm
+
+plt.rcdefaults()
+plt.style.use('vis/lamina.mplstyle')
+# -
+
+### SAVE FIGS? ###
+save_figs=True
+##################
 
 # +
-tp = '200218'
+tp = '200914'
 linkdf = pd.read_pickle(f'~/Data/{tp}_lamina/{tp}_linkdf.pickle')
 cxdf = pd.read_pickle(f'~/Data/{tp}_lamina/{tp}_cxdf.pickle')
 
@@ -81,7 +89,7 @@ data['inter_in'] = inter_in
 
 
 # +
-fig = plt.figure(figsize=[10, 10])
+fig = plt.figure(figsize=[4.6, 4.6])
 ax = fig.gca(projection='3d')
 ax.set_xlabel('Presynaptic contacts')
 ax.set_zlabel('Inputs from R1R4 + R3R6')
@@ -98,14 +106,61 @@ for pre, rows in data.groupby('type'):
         
         infrac = rows['R1R4'] + rows['R3R6']
         ax.scatter(rows['output_count'], rows['inter_in'], infrac, 
-                   label=f"{pre}, n = {len(rows)}", marker=m[pre], s=50, 
+                   label=f"L{pre.split('_')[1]}", marker=m[pre],
                    c=c[pre], alpha=0.5, depthshade=False)
         #ax.scatter(rows['R1R4'] + rows['R3R6'], rows['inter_in'], rows['output_count'], label=pre)
-ax.legend()
-
+plt.legend(bbox_to_anchor=(0.95, 1), loc='upper left', borderaxespad=0.)
+ax.xaxis.set_major_locator(plt.MaxNLocator(3))
 ax.invert_yaxis()
 ax.view_init(elev=5)
+
 plt.show()
+
+if save_figs:
+    fig.savefig('/mnt/home/nchua/Dropbox/lamina_figures/LMC_properties_scatter.svg')
+    fig.savefig('/mnt/home/nchua/Dropbox/lamina_figures/LMC_properties_scatter.png')
+
+# +
+fig = plt.figure(figsize=[4.6, 4.6])
+ax = fig.gca(projection='3d')
+ax.set_xlabel('Output synapses')
+ax.set_zlabel('Inputs from R1R4 + R3R6')
+ax.set_ylabel('Inputs from neighboring cartridges')
+
+c = subtype_cm()
+
+m = {'LMC_N': 'D', 'LMC_1': 's', 'LMC_2': '^', 'LMC_3': 'o', 'LMC_4': 'P'}
+
+for pre, rows in data.groupby('type'):
+    if pre not in lmcs:
+        continue
+    else:
+        
+        infrac = rows['R1R4'] + rows['R3R6']
+        ax.scatter(rows['output_count'], rows['inter_in'], infrac, 
+                   label=f"L{pre.split('_')[1]}", marker=m[pre],
+                   c=c[pre], alpha=0.5, depthshade=True)
+        #ax.scatter(rows['R1R4'] + rows['R3R6'], rows['inter_in'], rows['output_count'], label=pre)
+plt.legend(bbox_to_anchor=(0.95, 1), loc='upper left', borderaxespad=0.)
+# maxx = max(data['R1R4'] + data['R3R6'])
+# maxy = max(data['inter_in'])
+
+# ax.set_xlim([0, maxx + maxx % 5])
+# ax.set_ylim([0, maxy + maxy % 5])
+# ax.set_zlim()
+ax.view_init(elev=10, azim=200)
+ax.autoscale(enable=True, tight=True)
+ax.invert_yaxis()
+ax.xaxis.set_major_locator(plt.MaxNLocator(3))
+#ax.tick_params(labelrotation=Fals
+plt.show()
+
+if save_figs:
+    fig.savefig('/mnt/home/nchua/Dropbox/lamina_figures/LMC_properties_scatter.svg')
+    fig.savefig('/mnt/home/nchua/Dropbox/lamina_figures/LMC_properties_scatter.png')
+# -
+
+
 
 # +
 fig, ax = plt.subplots(1, figsize=[15, 10])
@@ -118,7 +173,7 @@ for pre in lmcs:
     sns.distplot(x, ax=ax, color=c[pre])
 # -
 
-fig, ax = plt.subplots(1, figsize=[10, 8])
+fig, ax = plt.subplots(1, figsize=[2.3, 2.3])
 ax.set_title('L1 and L3')
 ax.set_xlabel('Inputs from R1R4 + R3R6')
 ax.set_ylabel('Number of cartridges')
@@ -230,7 +285,7 @@ lmc_ins = data.loc[[i for i, t in enumerate(data['type']) if t in lmcs],
 X = lmc_ins.loc[:, ('R1R4', 'R2R5', 'R3R6')]
 X_r = pca.fit(X).transform(X)
 
-fig = plt.figure(figsize=[10, 10])
+fig = plt.figure()
 ax = fig.gca()
 ax.set_title("->LMC short photoreceptor inputs\n" + 
              f"explained variance ratio (first two PCs): {pca.explained_variance_ratio_}")
@@ -315,7 +370,7 @@ for pre, rows in data.groupby('type'):
     else:
         ax.scatter(x=rows['output_count'], y=rows['R2R5'])
 
-        
+
 # -
 
 

@@ -13,8 +13,7 @@
 #     name: python3
 # ---
 
-# # Clustering Ommatidia by Lamina Connections
-# - Clusters every ommatidia according to the vector of all their (home) connection counts
+# # Similarity of lamina circuits
 
 # +
 import numpy as np
@@ -27,15 +26,18 @@ from sklearn.linear_model import LinearRegression
 
 from src.dataframe_tools import assemble_cxvectors
 from vis.hex_lattice import hexplot
-from vis.colour_palettes import subtype_cm
-from vis.fig_tools import linear_cmap
+from vis.fig_tools import linear_cmap, subtype_cm
+
+plt.rcdefaults()
+plt.style.use('vis/lamina.mplstyle')
 # -
-
-
+### SAVE FIGS? ###
+save_figs=True
+##################
 
 # +
 # Load dataframe of om->[connection counts]
-tp = "200507"
+tp = '200914'
 lamina_links = pd.read_pickle(f'~/Data/{tp}_lamina/{tp}_linkdf.pickle')
 subtypes = np.unique([*lamina_links["pre_type"], *lamina_links["post_type"]])
 
@@ -45,93 +47,127 @@ ommatidia = ommatidia = np.unique(lamina_links['pre_om'])
 
 cxvecs = assemble_cxvectors(lamina_links)
 
-# df_lamina = pd.DataFrame(index=ommatidia, columns=all_ctype_labels).astype('Int64')
-
-# for om, row in df_lamina.iterrows():
-#     for c in all_ctype_labels:
-#         pre_t, post_t = c.split('->')
-#         # Cartridges on the posterior edge lack L4, so their counts for these connections are NaNed 
-#         if om in ['B0', 'E4', 'E5', 'E6', 'E7', 'D2', 'C1'] and post_t == 'LMC_4':
-#             df_lamina.loc[om, c] = 0
-#             # df_lamina.loc[om, c] if you want to remove the L4 connections completely
-#         else:
-#             df_lamina.loc[om, c] = sum((lamina_links.pre_om == om) & (lamina_links.post_om == om) & 
-#                                        (lamina_links.pre_type == pre_t) & (lamina_links.post_type == post_t))
-
 # +
 # Filtering criteria
 #unknowns = [c for c in df_lamina.columns if 'UNKNOWN' in c]   # discard columns involving connections to unidentified arbors
 #df = df_lamina.drop(unknowns, axis=1).astype(float).dropna('columns')  # dropna effectively discards L4 associated connections
-thresh = cxvecs.mean() > 1
-cxvecs = cxvecs.loc[:, thresh].fillna(0)  # filter out connections with mean less than 1
+thresh = 3.0
 
+cxvecs = cxvecs.loc[:, cxvecs.mean() > thresh].fillna(0)  # filter out connections with mean less than 1
 cxvecs = cxvecs.rename_axis(index='om')
+
+
 # -
+
+# Specifies colors for DRA and non-DRA ommatidia
+def om_colors(om_list):
+    dra_om = ['A5', 'B5', 'B6', 'C5', 'C6', 'D6', 'D7', 'E7']
+    c_list = []
+    for o in om_list:
+        if str(o) in dra_om:
+            c_list.append('darkviolet')
+        else:
+            c_list.append('darkgreen')
+    return c_list
+
 
 # ## Clustering by all connection types
 
-# +
+# ## Clustering by connection counts
 
-region_color = {'A0': 'b',
-                'A1': 'b',
-               'A2': 'b',
-               'A3': 'gray',
-               'A4': 'gray',
-               'A5': 'm',
-               'B0': 'b',
-               'B1': 'darkgreen',
-               'B2': 'gray',
-               'B3': 'b',
-               'B4': 'gray',
-               'B5': 'm',
-               'B6': 'm',
-               'C1': 'darkgreen',
-               'C2': 'darkgreen',
-               'C3': 'b',
-               'C4': 'gray',
-               'C5': 'gray',
-               'C6': 'm',
-               'D2': 'b',
-               'D3': 'b',
-               'D4': 'b',
-               'D5': 'gray',
-               'D6': 'm',
-               'D7': 'm',
-               'E4': 'gray',
-               'E5': 'gray',
-               'E6': 'gray',
-               'E7': 'm'}
-region_list = list(region_color.values())
+# ### All connections
+
+# +
+data = cxvecs.T
+c_list = om_colors(data.columns)
+clus = sns.clustermap(data, row_cluster=False, col_colors=c_list, yticklabels=data.index, metric='euclidean', 
+                      method='complete', cmap='Reds')
+plt.show()
+
+if save_figs:
+    clus.savefig(f'/mnt/home/nchua/Dropbox/lamina_figures/om_clus_allcx_thresh{thresh}.svg')
+    clus.savefig(f'/mnt/home/nchua/Dropbox/lamina_figures/om_clus_allcx_thresh{thresh}.png')
 # -
 
-display(len(cxvecs.T))
-clus = sns.clustermap(cxvecs.T, row_cluster=False, col_colors=region_list, yticklabels=cxvecs.columns, metric='cosine',
-                      cmap='Reds')
-#clus.savefig("/mnt/home/nchua/Dropbox/200610_ret-clus.svg")
-
-homedf = cxvecs.loc[:, [i for i in cxvecs.columns if ('LMC_4' not in i) and ('eLMC_2' not in i)]]
-display(len(homedf.T))
-cbar_kws = {'label': 'Connection Counts'}
-clus = sns.clustermap(homedf.T, row_cluster=False, col_colors=region_list, figsize=[12,12], cmap='Reds',
-                      yticklabels=homedf.T.index, metric='cosine', cbar_kws=cbar_kws)
-clus.savefig("/mnt/home/nchua/Dropbox/200610_ret-clus.svg")
+# ### Home connections
 
 # +
-om_corr = cxvecs.T.corr()
+data = cxvecs.loc[:, [i for i in cxvecs.columns if ('LMC_4' not in i) and ('eLMC_2' not in i)]].T
+c_list = om_colors(data.columns)
+clus = sns.clustermap(data, row_cluster=True, col_colors=c_list, figsize=[12,12], cmap='Reds',
+                      yticklabels=data.index, metric='euclidean', method='complete')
+plt.show()
 
-
-sns.clustermap(om_corr, metric='cosine', 
-               col_colors=region_list,linewidth=0.5, cmap='YlGnBu', vmin=0.75, vmax=1)
-# sns.clustermap(om_corr, xticklabels=om_corr.columns, yticklabels=om_corr.columns, metric='cosine',
-#                row_colors=region_color,linewidth=0.5)
-
-# +
-fig, ax = plt.subplots(1, figsize=[8, 12])
-hexplot(node_data={k: {'colour': v} for k, v in region_color.items()}, ax=ax)
-
-fig.savefig(fig.savefig("/mnt/home/nchua/Dropbox/200610_clus-assign.svg"))
+if save_figs:
+    clus.savefig(f'/mnt/home/nchua/Dropbox/lamina_figures/om_clus_homecx_thresh{thresh}.svg')
+    clus.savefig(f'/mnt/home/nchua/Dropbox/lamina_figures/om_clus_homecx_thresh{thresh}.png')
 # -
 
+# ## Clustering by z-score of connection counts
+
+# +
+z_scores = pd.DataFrame(index=cxvecs.index, columns=cxvecs.columns)
+
+for cx, vec in cxvecs.T.iterrows():
+    z_scores.loc[:, cx] = (vec - vec.mean())/vec.std(ddof=0)
+# -
+
+# ### All connections
+
+# +
+data = z_scores.T
+c_list = om_colors(data.columns)
+clus = sns.clustermap(data, col_colors=c_list, yticklabels=data.index, metric='cosine', method='average',
+                      cmap='RdBu_r', label='z-score')
+plt.show()
+
+if save_figs:
+    clus.savefig('/mnt/home/nchua/Dropbox/lamina_figures/om_clus_z-score_allcx.svg')
+    clus.savefig('/mnt/home/nchua/Dropbox/lamina_figures/om_clus_z-score_allcx.png')
+# -
+
+# ### Home connections
+
+# +
+data = z_scores.loc[:, [i for i in cxvecs.columns if ('LMC_4' not in i) and ('eLMC_2' not in i)]].T
+c_list = om_colors(data.columns)
+clus = sns.clustermap(data, col_colors=c_list, yticklabels=data.index, metric='cosine', method='average',
+                      cmap='RdBu_r', center=0)
+plt.show()
+
+if save_figs:
+    clus.savefig('/mnt/home/nchua/Dropbox/lamina_figures/om_clus_z-score_homecx.svg')
+    clus.savefig('/mnt/home/nchua/Dropbox/lamina_figures/om_clus_z-score_homecx.png')
+# -
+
+# ## Clustering by correlation of connection counts
+
+# +
+data = cxvecs.T.corr()
+c_list = om_colors(data.columns)
+
+clus = sns.clustermap(data, metric='euclidean', method='average',  # average = centroid linkage
+                      col_colors=c_list, cmap='YlGnBu', vmin=0.75, vmax=1)
+
+plt.show()
+
+if save_figs:
+    clus.savefig('/mnt/home/nchua/Dropbox/lamina_figures/om_clus_corr_allcx.svg')
+    clus.savefig('/mnt/home/nchua/Dropbox/lamina_figures/om_clus_corr_allcx.png')
+
+# +
+data = cxvecs.loc[:, [i for i in cxvecs.columns if ('LMC_4' not in i) and ('eLMC_2' not in i)]].T.corr()
+#display(cxvecs.loc[:, [i for i in cxvecs.columns if ('LMC_4' not in i) and ('eLMC_2' not in i)]])
+c_list = om_colors(data.columns)
+
+
+sns.clustermap(data, metric='euclidean', method='average',  # average = centroid linkage
+               col_colors=c_list, cmap='RdBu')
+
+if save_figs:
+    clus.savefig('/mnt/home/nchua/Dropbox/lamina_figures/om_clus_corr_homecx.svg')
+    clus.savefig('/mnt/home/nchua/Dropbox/lamina_figures/om_clus_corr_homecx.png')
+# -
 
 
 
