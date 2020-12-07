@@ -5,8 +5,8 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.4
+#       format_version: '1.5'
+#       jupytext_version: 1.7.1
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -32,7 +32,7 @@ plt.rcdefaults()
 plt.style.use('vis/lamina.mplstyle')
 # -
 ### SAVE FIGS? ###
-save_figs=True
+save_figs=False
 ##################
 
 # +
@@ -92,7 +92,7 @@ if save_figs:
 # ### Home connections
 
 # +
-data = cxvecs.loc[:, [i for i in cxvecs.columns if ('LMC_4' not in i) and ('eLMC_2' not in i)]].T
+data = cxvecs.loc[:, [i for i in cxvecs.columns if ('eLMC_4' not in i) and ('eLMC_2' not in i)]].T
 c_list = om_colors(data.columns)
 clus = sns.clustermap(data, row_cluster=True, col_colors=c_list, figsize=[12,12], cmap='Reds',
                       yticklabels=data.index, metric='euclidean', method='complete')
@@ -129,7 +129,7 @@ if save_figs:
 # ### Home connections
 
 # +
-data = z_scores.loc[:, [i for i in cxvecs.columns if ('LMC_4' not in i) and ('eLMC_2' not in i)]].T
+data = z_scores.loc[:, [i for i in cxvecs.columns if ('eLMC_4' not in i) and ('eLMC_2' not in i)]].T
 c_list = om_colors(data.columns)
 clus = sns.clustermap(data, col_colors=c_list, yticklabels=data.index, metric='cosine', method='average',
                       cmap='RdBu_r', center=0)

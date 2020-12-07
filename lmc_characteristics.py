@@ -5,8 +5,8 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.4
+#       format_version: '1.5'
+#       jupytext_version: 1.7.1
 #   kernelspec:
 #     display_name: wasp
 #     language: python
@@ -34,7 +34,8 @@ plt.style.use('vis/lamina.mplstyle')
 # -
 
 ### SAVE FIGS? ###
-save_figs=True
+save_figs=False
+save_path='~/Dropbox (Simons Foundation)/lamina_figs'
 ##################
 
 # +
@@ -119,46 +120,10 @@ plt.show()
 if save_figs:
     fig.savefig('/mnt/home/nchua/Dropbox/lamina_figures/LMC_properties_scatter.svg')
     fig.savefig('/mnt/home/nchua/Dropbox/lamina_figures/LMC_properties_scatter.png')
-
-# +
-fig = plt.figure(figsize=[4.6, 4.6])
-ax = fig.gca(projection='3d')
-ax.set_xlabel('Output synapses')
-ax.set_zlabel('Inputs from R1R4 + R3R6')
-ax.set_ylabel('Inputs from neighboring cartridges')
-
-c = subtype_cm()
-
-m = {'LMC_N': 'D', 'LMC_1': 's', 'LMC_2': '^', 'LMC_3': 'o', 'LMC_4': 'P'}
-
-for pre, rows in data.groupby('type'):
-    if pre not in lmcs:
-        continue
-    else:
-        
-        infrac = rows['R1R4'] + rows['R3R6']
-        ax.scatter(rows['output_count'], rows['inter_in'], infrac, 
-                   label=f"L{pre.split('_')[1]}", marker=m[pre],
-                   c=c[pre], alpha=0.5, depthshade=True)
-        #ax.scatter(rows['R1R4'] + rows['R3R6'], rows['inter_in'], rows['output_count'], label=pre)
-plt.legend(bbox_to_anchor=(0.95, 1), loc='upper left', borderaxespad=0.)
-# maxx = max(data['R1R4'] + data['R3R6'])
-# maxy = max(data['inter_in'])
-
-# ax.set_xlim([0, maxx + maxx % 5])
-# ax.set_ylim([0, maxy + maxy % 5])
-# ax.set_zlim()
-ax.view_init(elev=10, azim=200)
-ax.autoscale(enable=True, tight=True)
-ax.invert_yaxis()
-ax.xaxis.set_major_locator(plt.MaxNLocator(3))
-#ax.tick_params(labelrotation=Fals
-plt.show()
-
-if save_figs:
-    fig.savefig('/mnt/home/nchua/Dropbox/lamina_figures/LMC_properties_scatter.svg')
-    fig.savefig('/mnt/home/nchua/Dropbox/lamina_figures/LMC_properties_scatter.png')
 # -
+
+
+
 
 
 

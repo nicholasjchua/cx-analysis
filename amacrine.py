@@ -5,12 +5,12 @@
 #     text_representation:
 #       extension: .py
 #       format_name: light
-#       format_version: '1.4'
-#       jupytext_version: 1.2.4
+#       format_version: '1.5'
+#       jupytext_version: 1.7.1
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: wasp
 #     language: python
-#     name: python3
+#     name: wasp
 # ---
 
 # # Amacrine
@@ -27,11 +27,10 @@ import itertools
 from sklearn.linear_model import LinearRegression
 
 from vis.hex_lattice import hexplot
-from vis.colour_palettes import subtype_cm
-from vis.fig_tools import linear_cmap
+from vis.fig_tools import linear_cmap, subtype_cm
 
 # +
-tp = '200507'
+tp = '200914'
 data_path = f"~/Data/{tp}_lamina/{tp}"
 cx = pd.read_pickle(data_path + "_cxdf.pickle")
 links = pd.read_pickle(data_path + "_linkdf.pickle")

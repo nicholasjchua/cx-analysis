@@ -7,7 +7,7 @@ figure.dpi:            400
 #figure.autolayout: True  # for 'fig.tight_layout()'
 
 ## AXES ##
-axes.titlesize:     8.0
+#axes.titlesize:     8.0
 axes.spines.top:    False
 axes.spines.right:  False
 
@@ -16,5 +16,5 @@ savefig.dpi:        figure
 savefig.format:     svg    
 savefig.bbox:       tight
 
-# the amount of width/height reserved for space between subplots 
+#text.usetex: True
 
