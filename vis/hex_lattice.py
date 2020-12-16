@@ -7,9 +7,8 @@ import networkx as nx
 from pprint import pprint
 
 def hexplot(node_data: Union[Dict, pd.DataFrame], decimals: int=0, 
-            node_lim: Iterable=None, c: Iterable=None, lc: str='k',
-            edge_data: Dict=None, edge_c='r',  # EDGE DATA NOT IMPLEMENTED YET
-            ax: plt.Axes=None, scale_factor: float=0.015):
+            var_lim: Iterable=None, c: Iterable=None, lc: str='k',
+            ax: plt.Axes=None, scale_factor: float=0.1):#float=0.015):
     """
     Plot a map of the hexagonal lattice of the megaphragma compound eye. Each ommatidium will be labelled and coloured
     according to the strings and (r, g, b, a) values passed with node_data. This will also take a 1-col dataframe indexed by om
@@ -27,8 +26,8 @@ def hexplot(node_data: Union[Dict, pd.DataFrame], decimals: int=0,
     if c is None: # default color
         c = (0.2, 0.2, 0.2, 1)
         
-    if isinstance(node_data, pd.DataFrame):
-        node_data = __from_pandas(node_data, c=c, node_lim=node_lim)
+    if not isinstance(node_data, Dict):
+        node_data = __from_series(node_data, c=c, var_lim=var_lim)
     
     G, pos = generate_lattice()
     nx.set_node_attributes(G, pos, name='pos')
@@ -53,20 +52,26 @@ def hexplot(node_data: Union[Dict, pd.DataFrame], decimals: int=0,
 
     pos = scale_distance_between(pos, scale_factor)
 
-    nx.draw(G, pos, alpha=1.0, edge_list=[], node_color=node_colours, node_size=scale_factor * 18000,
-            node_shape='H', linewidth=1.0, ax=ax)
-    nx.draw_networkx_labels(G, pos, labels=node_labels, edge_list=[], font_size=5, font_color=lc, ax=ax)
+    nx.draw(G, pos, alpha=1.0, node_color=node_colours, node_size=300, #scale_factor * 18000,
+            node_shape='H', ax=ax)
+    nx.draw_networkx_labels(G, pos, labels=node_labels, font_size=5, font_color=lc, ax=ax)
 #     ax.set_xmargin(0)
 #     ax.set_ymargin(0)
+    
+    xs, ys = ([v[0] for k, v in pos.items()], 
+              [v[1] for k, v in pos.items()])
+    
+    ax.set_xlim([min(xs) - scale_factor, max(xs) + scale_factor])
+    ax.set_ylim([min(ys) - scale_factor, max(ys) + scale_factor])
     ax.set_aspect('equal')
     
     return ax
 
 
-def hexplot_TEST(node_data, decimals: int=None, 
-            node_lim: Iterable=None, c: object=None, lc: str='k',
-            edge_data: Dict=None, edge_c='r',  # EDGE DATA NOT IMPLEMENTED YET
-            ax: plt.Axes=None, scale_factor: float=0.015):
+def hexplot_TEST(node_data, decimals: int=1, 
+                 var_lim: Iterable=None, c: object=None, lc: str='k',
+                 #edge_data: Dict=None, edge_c='r',  # EDGE DATA NOT IMPLEMENTED YET
+                 ax: plt.Axes=None, scale_factor: float=0.015):
     """
     Plot a map of the hexagonal lattice of the megaphragma compound eye. Each ommatidium will be labelled and coloured
     according to the strings and (r, g, b, a) values passed with node_data. This will also take a 1-col dataframe indexed by om
@@ -82,12 +87,10 @@ def hexplot_TEST(node_data, decimals: int=None,
     :return:
     """
     if c == None: # default color
-        default_c = (0.2, 0.2, 0.2, 1)
-    else:
-        default_c = c
+        c = (0.2, 0.2, 0.2, 1)
         
-    if isinstance(node_data, pd.DataFrame):
-        node_data = __from_pandas(node_data, c=c, node_lim=node_lim)
+    if not isinstance(node_data, Dict):
+        node_data = __from_series(node_data, c=c, var_lim=var_lim)
         
     if ax == None:
         ax = plt.gca()
@@ -103,20 +106,20 @@ def hexplot_TEST(node_data, decimals: int=None,
         
         if node_data[om].get('label') == None:
             label = om
-        elif type(node_data.get('label')) == float and decimal != None:
-            label = str(round(label, decimals))
+        elif isinstance(node_data.get('label'), (int, float)):
+            label = str(round(node_data.get('label'), decimals))
         else:
-            label = str(label)
+            label = node_data.get('label')
                         
         if (node_data[om].get('colour') == None):
-            fill_c = default_c
+            fill_c = c
         else:
             fill_c = node_data[om].get('colour')
             
-        x = xy[0] * 0.01
-        y = xy[1] * 0.01
+        x, y = (xy[0] * 0.01, xy[1] * 0.01)
+        #y = xy[1] * 0.01
         
-        ax.scatter(xy[0], xy[1], marker='H', c=fill_c, s=100)
+        ax.scatter(xy[0], xy[1], marker='H', color=fill_c, s=100)
         ax.annotate(label, xy, fontsize=8, color='w', ha='center', va='center')
         
         
@@ -158,45 +161,69 @@ def generate_lattice() -> Tuple:
     return G, pos
 
 
-def __from_pandas(X: object, c: Iterable, node_lim: Iterable=None, cmap_center: str=None) -> Dict:
+def __from_series(X: pd.Series, c: Iterable, var_lim: Iterable=None, center_cmap_at: str=None, decimals: int=2) -> Dict:
     """
-    __from_pandas
-    This function is called when hexplot() receives a pandas DataFrame instead of 
-    a dict for node_data. Right now, the df has to be indexed by 'om'. 
-    The different options for the color transfer functions need to be tested
+    __from_series
+    This function is called when hexplot() receives a pandas Series instead of 
+    a dict for node_data. Right now, the series has to be indexed by 'om'. 
+    The different options for the color transfer functions need to be tested. This is 
+    currently good if you don't need a cmap centered on a certain value, i.e. min -> max, white -> red
+    1. 
     """
     
     from matplotlib.colors import LinearSegmentedColormap
     
-    if len(X.columns) == 1:
-        var_name = X.columns[0]
+    if isinstance(X, pd.Series):
+        var_name = X.name
     else:
-        raise Warning('DataFrame has too many variable columns, idk which to plot')
-    
-    if cmap_center is None and X.min().values >= 0:
-        cm = LinearSegmentedColormap.from_list(name='mycm', colors=[(1.0, 1.0, 1.0), c])
-        if node_lim is None:
-            max_val = X.max()
-        else:
-            max_val = node_lim[1]
-        trans_vals = (X - X.min()) / (max_val - X.min())  # 0 - 1
-    ### NOT TESTED ###
-    elif cmap_center is None:
-        cm = LinearSegmentedColormap.from_list(name='mycm', colors=[c[0], (1.0, 1.0, 1.0), c[1]])
-        abs_max = X.abs().max()
-        trans_vals = ((X / abs_max) + 1)/2
-    elif (cmap_center in ['mean', 'average']):
-        cm = LinearSegmentedColormap.from_list(name='mycm', colors=[c[0], (1.0, 1.0, 1.0), c[1]])
-        abs_max = X.abs().max()
-        trans_vals = (X/X.mean()) - 0.5
-    ### NOT TESTED ###
-    else:
-        raise Warning('Something went wrong')
+        raise Exception('node_data is not a Pandas Series')
         
+        
+    ### MAKE COLORMAP ACCORDING TO OPTIONS AND TRANSFORM DATA ###
+    if center_cmap_at is None: # cmap goes from white to c (min val -> max val)
+        cm = LinearSegmentedColormap.from_list(name='mycm', colors=[(1.0, 1.0, 1.0), c])
+        if var_lim is None:  # range uses max and min of series
+            trans_vals = (X - X.min()) / (X.max() - X.min())
+        else:  # custom range
+            trans_vals = (X - var_lim[0]) / (var_lim[1] - var_lim[0])
+    ### NOT TESTED ###
+    elif center_cmap_at == 'mean':
+        if len(c) == 3 and isinstance(c[0], (int, float)):
+            cm = LinearSegmentedColormap.from_list(name='mycm', colors=[c, (1.0, 1.0, 1.0), c])
+            raise Warning("Pass 2 RGB tuples for a cmap that diverges into two colors for min and max. " +
+                          "Currently only one RGB value given")
+        elif isinstance(c[0], Iterable) and len(c[0]) == 3: 
+            cm = LinearSegmentedColormap.from_list(name='mycm', colors=[c[0], (1.0, 1.0, 1.0), c[1]])
+        else:
+            raise Exception("c argument invalid, should be a tuple containing RGB value, " + 
+                            "or a list of 2 RBG tuples for a divergent colormap.")
+        trans_vals = abs(X/X.mean()) - 0.5
+    
+#     elif 'mid' in center_cmap_at:
+#         mid_point = (X.min() + X.max()) * 0.5
+#         if len(c) == 3 and isinstance(c[0], (int, float)):
+#             cm = LinearSegmentedColormap.from_list(name='mycm', colors=[c, (1.0, 1.0, 1.0), c])
+#             raise Warning("Pass 2 RGB tuples for a cmap that diverges into two colors for min and max. " +
+#                           "Currently only one RGB value given")
+#         elif isinstance(c[0], Iterable) and len(c[0]) == 3: 
+#             cm = LinearSegmentedColormap.from_list(name='mycm', colors=[c[0], (1.0, 1.0, 1.0), c[1]])
+#         else:
+#             raise Exception("c argument invalid, should be a tuple containing RGB value, " + 
+#                             "or a list of 2 RBG tuples for a divergent colormap.")
+#         trans_vals = (X/mid_point) + 0.5
+    ##################
+    else:
+        raise Exception('Something went wrong')
+    
     node_data = dict()
-    for om, val in X.iterrows():
-        this_node = {'colour': cm(trans_vals.loc[om, var_name]),
-                     'label': f"{val[var_name]: .2f}"}
+    for om, val in X.items():
+        this_node = {'colour': cm(trans_vals.loc[om])}
+        if isinstance(val, int):  # integer
+            this_node.update({'label': f"{val: .0f}"})
+        else: # non-int
+            v = np.round(val, decimals)
+            this_node.update({'label': f"{val}"})
+        
         node_data[om] = this_node
             
     return node_data
@@ -215,15 +242,17 @@ def hex_to_om(xy: Iterable) -> str:
     return str(col_letter) + str(row_num)
 
 
-def om_to_hex(om: str) -> Tuple:
+def om_to_hex(om: str, scale_factor: float=0.1) -> Tuple:
     """
     Convert letter-digit ommatidia ID (e.g. 'A4') to figure coordinates
-    :param position: 2-tuple of floats indicating the ommatidia's figure coordinates
-    :return col_row: str, e.g. 'B2'
+    :param om: length-2 string describing the ommatidia's coordinate on the eye
+    :return x, y: x and y coordinates for 2D figures
     """
     assert(len(om) == 2)
-    x = np.sqrt(3.0)/2.0 * (ord(om[0]) - 65.0) + 4.0
-    y = int(om[1]) - (0.5 * ord(om[0]))
+    col_num = float(ord(om[0]) - 65.0)
+    x = (-1.0 * np.sqrt(3.0) / 2.0 * col_num + 4.0) * scale_factor
+    y = (float(om[1]) - (0.5 * col_num)) * scale_factor
+
     return x, y
 
 
