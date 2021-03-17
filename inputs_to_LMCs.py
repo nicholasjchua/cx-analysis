@@ -85,9 +85,9 @@ lmcs = ['LMC_1', 'LMC_2', 'LMC_3', 'LMC_4', 'LMC_N']
 feedforward = [pre + '->' + post for pre, post in itertools.product(svfs, lmcs)]
 
 
+cp_ratio = pd.DataFrame()
 svf_lmc = cxvecs.filter(items=feedforward)
 combined_svf = pd.DataFrame()
-cp_ratio = pd.DataFrame()
 
 for l in lmcs:
     combined_svf[f'R1R4+R3R6->{l}'] = svf_lmc[f'R1R4->{l}'] + svf_lmc[f'R3R6->{l}']

@@ -27,7 +27,7 @@ def hexplot(node_data: Union[Dict, pd.DataFrame], decimals: int=0,
         c = (0.2, 0.2, 0.2, 1)
         
     if not isinstance(node_data, Dict):
-        node_data = __from_series(node_data, c=c, var_lim=var_lim)
+        node_data = __from_series(node_data, c=c, var_lim=var_lim, decimals=decimals)
     
     G, pos = generate_lattice()
     nx.set_node_attributes(G, pos, name='pos')
@@ -68,7 +68,7 @@ def hexplot(node_data: Union[Dict, pd.DataFrame], decimals: int=0,
     return ax
 
 
-def hexplot_TEST(node_data, decimals: int=1, 
+def hexplot_TEST(node_data, decimals: int=0, 
                  var_lim: Iterable=None, c: object=None, lc: str='k',
                  #edge_data: Dict=None, edge_c='r',  # EDGE DATA NOT IMPLEMENTED YET
                  ax: plt.Axes=None, scale_factor: float=0.015):
@@ -90,7 +90,7 @@ def hexplot_TEST(node_data, decimals: int=1,
         c = (0.2, 0.2, 0.2, 1)
         
     if not isinstance(node_data, Dict):
-        node_data = __from_series(node_data, c=c, var_lim=var_lim)
+        node_data = __from_series(node_data, c=c, var_lim=var_lim, decimals=decimals)
         
     if ax == None:
         ax = plt.gca()
@@ -104,7 +104,7 @@ def hexplot_TEST(node_data, decimals: int=1,
     #name_to_ind = 
     for om, xy in zip(om_list, pos):
         
-        if node_data[om].get('label') == None:
+        if node_data[om].get('label', None) == None:
             label = om
         elif isinstance(node_data.get('label'), (int, float)):
             label = str(round(node_data.get('label'), decimals))
@@ -161,7 +161,7 @@ def generate_lattice() -> Tuple:
     return G, pos
 
 
-def __from_series(X: pd.Series, c: Iterable, var_lim: Iterable=None, center_cmap_at: str=None, decimals: int=2) -> Dict:
+def __from_series(X: pd.Series, c: Iterable, var_lim: Iterable=None, center_cmap_at: str=None, decimals: int=0) -> Dict:
     """
     __from_series
     This function is called when hexplot() receives a pandas Series instead of 

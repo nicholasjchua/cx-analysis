@@ -5,13 +5,32 @@ from src.config import Config
 from scipy.spatial import distance
 
 
+def segment_skeleton(skel_id: str, cfg: Config, nodes: List=None, restrict_tags=None) -> List:
+    
+    root_id = get_root_id(skel_id, cfg)
+
+    if nodes is None:
+        node_list = skel_compact_detail(skel_id, cfg)
+    else:
+        node_list = nodes
+        
+    if restrict_tags is not None:
+        node_list = nodes_betwixt(skel_id, cfg, restrict_tags, node_list, invert=False)
+    branches = dict()
+    branches = find_branch_points(node_list, current=root_id, branches=branches, last_branch=root_id)
+    
+    return branches
+    
+    
+        
+
 def nodes_betwixt(skel_id: str, cfg: Config, restrict_tags: Union[str, Tuple], nodes: List=None,
                        invert: bool=True) -> Union[List[str], Tuple]:
     """
     Get a list of node_ids for nodes between two specified tags on a skeleton.
     TODO: allow this to take node_ids for start and end instead
     :param skel_id: Skeleton ID
-    :param restrict_tags: str or tuple of two strings. Giving just one will define the segment as root -> tag
+    :param restrict_tags: str or tuple of two strings. Giving just one will define the segment as root -> <tag>
     :param nodes: (optional) list of node IDs so they aren't fetched again
     :param invert: If true, returns the nodes OUTSIDE the tagged segment.
     :return:
@@ -33,7 +52,7 @@ def nodes_betwixt(skel_id: str, cfg: Config, restrict_tags: Union[str, Tuple], n
         start = node_with_tag(skel_id, root_id, restrict_tags[0], cfg)
         end = node_with_tag(skel_id, root_id, restrict_tags[1], cfg)
     else:
-        raise Exception("More than two restrict_tagss given")
+        raise Exception("More than two restrict_tags given")
 
     dist = check_dist(start, end, cfg)
     nodes_within = traverse_nodes(node_list, int(start), int(end))
@@ -71,7 +90,7 @@ def traverse_nodes(node_list: List, start: int=None, end: int=None):
     """
     Recursive walk through node_list from 'start' node, collecting node IDs in a list.
     Function will split when a branch is hit (i.e. node has two children)
-    Ends when when an arbor terminates of if 'end' node is found
+    Ends when when an arbor terminates or if 'end' node is found
     :param node_list: List, of nodes to traverse
     :param start:
     :param end:
@@ -90,6 +109,27 @@ def traverse_nodes(node_list: List, start: int=None, end: int=None):
                 node_ids.extend(deeper_nodes)
 
     return node_ids
+
+
+def find_branch_points(node_list: List, current: int=None, branches: Dict=None, last_branch=None):
+    
+    #these_branches = branches
+    b = branches
+    children = [n[0] for n in node_list if n[1] == current]
+    #b.setdefault(last_branch, []).append(current)
+    
+    if len(children) == 0:  # End of branch
+        return b
+    elif len(children) > 1:  # Branch point
+        b.update({current, [current]})
+        for c in children:
+            deeper_b = find_branch_points(node_list, current=c, branches=b, last_branch=current)
+            b.update(deeper_b) 
+        return b
+    else: # 1 child, continue on 
+        deeper_b = find_branch_points(node_list, current=children[0], branches=b, last_branch=last_branch)
+        b.update(deeper_b) 
+        return b
 
 
 def node_coords(node_id: str, cfg:Config) -> Tuple:
