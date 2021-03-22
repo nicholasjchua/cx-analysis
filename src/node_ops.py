@@ -16,8 +16,8 @@ def segment_skeleton(skel_id: str, cfg: Config, nodes: List=None, restrict_tags=
         
     if restrict_tags is not None:
         node_list = nodes_betwixt(skel_id, cfg, restrict_tags, node_list, invert=False)
-    branches = dict()
-    branches = find_branch_points(node_list, current=root_id, branches=branches, last_branch=root_id)
+    branches = {int(root_id): [int(root_id)]}
+    branches = find_branch_points(node_list, current=root_id, branches=branches, parent_branch=root_id)
     
     return branches
     
@@ -86,7 +86,7 @@ def check_dist(n1: str, n2: str, cfg: Config) -> float:
         return dist
 
 
-def traverse_nodes(node_list: List, start: int=None, end: int=None):
+def traverse_nodes(node_list: List, start: int, end: int):
     """
     Recursive walk through node_list from 'start' node, collecting node IDs in a list.
     Function will split when a branch is hit (i.e. node has two children)
@@ -100,7 +100,7 @@ def traverse_nodes(node_list: List, start: int=None, end: int=None):
     node_ids = []
     if current != end:
         node_ids.append(current)
-        children = [n[0] for n in node_list if n[1] == current]
+        children = [n[0] for n in node_list if int(n[1]) == int(current)]
         if children == []:  # end of branch
             return node_ids
         else:
@@ -111,26 +111,58 @@ def traverse_nodes(node_list: List, start: int=None, end: int=None):
     return node_ids
 
 
-def find_branch_points(node_list: List, current: int=None, branches: Dict=None, last_branch=None):
+def find_branch_points(node_list: List, branches: Dict, current:int, parent_branch: int):
+    """
+    Get the node ID of branch points (and the IDs of intervening nodes in the segment)
+    
+    {branch ID: [list of node IDs]}
+    """
     
     #these_branches = branches
     b = branches
-    children = [n[0] for n in node_list if n[1] == current]
+    children = [n[0] for n in node_list if n[1] == int(current)]
     #b.setdefault(last_branch, []).append(current)
     
     if len(children) == 0:  # End of branch
+        b[parent_branch].append(current)
         return b
     elif len(children) > 1:  # Branch point
-        b.update({current, [current]})
+        b.update({int(current): [int(current)]})
         for c in children:
-            deeper_b = find_branch_points(node_list, current=c, branches=b, last_branch=current)
+            deeper_b = find_branch_points(node_list, current=int(c), 
+                                          branches=b, parent_branch=int(current))
             b.update(deeper_b) 
         return b
     else: # 1 child, continue on 
-        deeper_b = find_branch_points(node_list, current=children[0], branches=b, last_branch=last_branch)
+        b[int(parent_branch)].append(current)
+        deeper_b = find_branch_points(node_list, current=int(children[0]), 
+                                      branches=b, parent_branch=int(parent_branch))
         b.update(deeper_b) 
         return b
+    
+def find_end_points(node_list: List) -> List:
+    """
+    Get IDs of end nodes (leaf nodes) of the skeleton
+    """
+    parent_nodes = np.array(node_list).T[1]
+    end_ids = [n[0] for n in node_list if n[0] not in parent_nodes]
+    
+    return end_ids
 
+def branch_lengths(node_list: List, branch_list: Dict, end_list: List, cfg: Config) -> Dict:
+    
+    length_data = dict.fromkeys(end_list)
+    c_to_p = {n[0]: n[1] for n in node_list}
+    
+    for e in end_list:
+        current = e
+        d = 0.0
+        while (current not in branch_list) and (c_to_p[current] is not None):
+            parent = c_to_p[current]
+            d += dist_two_nodes(current, parent, cfg)
+            current = parent
+        length_data[e] = d
+    return length_data
 
 def node_coords(node_id: str, cfg:Config) -> Tuple:
     """
