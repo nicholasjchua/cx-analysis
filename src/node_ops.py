@@ -21,8 +21,6 @@ def segment_skeleton(skel_id: str, cfg: Config, nodes: List=None, restrict_tags=
     
     return branches
     
-    
-        
 
 def nodes_betwixt(skel_id: str, cfg: Config, restrict_tags: Union[str, Tuple], nodes: List=None,
                        invert: bool=True) -> Union[List[str], Tuple]:
