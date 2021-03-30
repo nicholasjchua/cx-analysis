@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Dict, Union, Tuple, List
-from src.catmaid_queries import fetch_node_data, get_root_id, node_with_tag, skel_compact_detail
+from src.catmaid_queries import get_root_id, node_with_tag, skel_compact_detail
 from src.config import Config
 from scipy.spatial import distance
 
@@ -162,13 +162,13 @@ def branch_lengths(node_list: List, branch_list: Dict, end_list: List, cfg: Conf
         length_data[e] = d
     return length_data
 
-def node_coords(node_id: str, cfg:Config) -> Tuple:
-    """
-    Get the x, y, z coordinates of a node using fetch_node_data,
-    TODO: check if nm or voxels
-    :param node_id:
-    :return x, y, z
-    """
-    x, y, z = fetch_node_data(node_id, cfg)[2: 5]
-    return x, y, z
+# def node_coords(node_id: str, cfg:Config) -> Tuple:
+#     """
+#     Get the x, y, z coordinates of a node using fetch_node_data,
+#     TODO: check if nm or voxels
+#     :param node_id:
+#     :return x, y, z
+#     """
+#     x, y, z = fetch_node_data(node_id, cfg)[2: 5]
+#     return x, y, z
 

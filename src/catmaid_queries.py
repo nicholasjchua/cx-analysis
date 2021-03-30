@@ -1,3 +1,5 @@
+import pdb
+
 from typing import List, Tuple, Union, Dict, Sequence
 import requests
 from src.config import Config
@@ -15,16 +17,19 @@ def do_get(apipath: str, cfg: Config) -> Tuple:
     p_url, token, p_id = cfg.cm_access()
     path = p_url + "/" + str(p_id) + apipath
     result = requests.get(path, headers={'X-Authorization': 'Token ' + token})
+    
     try:
         jresult = result.json()
     except ValueError:
         jresult = None
+        
     if jresult is not None:
         if 'type' in jresult:  # API doesn't provide another way to get at a python-objects-structured parse
             if jresult['type'] == "Exception":
                 print("exception info:")
                 print(jresult['detail'])
                 return False, "Something went wrong"
+            
     if result.status_code == 200:
         if jresult is not None:
             return True, jresult
@@ -45,16 +50,19 @@ def do_post(apipath: str, postdata: Dict, cfg: Config) -> Tuple:
     p_url, token, p_id = cfg.cm_access()
     path = p_url + "/" + str(p_id) + apipath
     result = requests.post(path, data=postdata, headers={'X-Authorization': 'Token ' + token})
+    
     try:
         jresult = result.json()
     except ValueError:
         jresult = None
+        
     if jresult is not None:
         if 'type' in jresult:
             if jresult['type'] == "Exception":
                 print("exception info:")
                 print(jresult['detail'])
                 return False, "Something went wrong"
+            
     if result.status_code == 200:
         if jresult is not None:
             return True, jresult
@@ -163,9 +171,7 @@ def fetch_node_data(node_id: str, cfg: Config) -> List:
     else:
         raise Exception(f"Could not find node with ID: {node_id}")
 
-
-
-
+        
 def node_with_tag(skel_id: str, root_id: str, tag_regex: str, cfg: Config, first: bool=True) -> Union[str, List]:
     """
     Returns the node_id of the first node in the skeleton tagged with 'tag_regex'
@@ -194,9 +200,17 @@ def node_with_tag(skel_id: str, root_id: str, tag_regex: str, cfg: Config, first
         print("list of {len(data)} nodes and their node_data")
         return data
 
-
-
-
+    
+def node_coords(node_id: str, cfg:Config) -> Tuple:
+    """
+    Get the x, y, z coordinates of a node using fetch_node_data,
+    TODO: check if nm or voxels
+    :param node_id:
+    :return x, y, z
+    """
+    x, y, z = fetch_node_data(node_id, cfg)[2: 5]
+    return x, y, z
+    
 
 # SKELETON QUERIES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def skel_compact_detail(skel_id: str, cfg: Config) -> List:
@@ -217,6 +231,46 @@ def skel_compact_detail(skel_id: str, cfg: Config) -> List:
 
 
 # CONNECTOR QUERIES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def cx_in_box(x: int, y: int, z: int, l: int, cfg: Config, v_size: int=8):
+    """
+    Get a Dict of connectors (pre syn) and postsynaptic nodes bounded by a
+    cube starting at coordinates x, y, z with side length l (voxels).
+    voxel size (default = 8) needs to be specified as the API takes 'real world' coordinates (nanometers)
+    Returns voxel coordinates
+    """
+    
+    op_path = f"/connectors/in-bounding-box"
+    post_data = {'minx': x * v_size,
+                 'miny': y * v_size,
+                 'minz': z * v_size,
+                 'maxx': (x + l) * v_size,
+                 'maxy': (y + l) * v_size,
+                 'maxz': (z + l) * v_size,
+                 'with_locations': True,
+                 'with_links': True}
+
+    res_code, data = do_post(op_path, post_data, cfg)
+    # API returns a list of lists. Each inner list contains the data for either a presynaptic or postsynaptic point.
+    # field[0] = connector ID, field[1:4] = (x, y, z) in world coords, field[4] = skel_id of connector, field[-1] = 15 if post, 16 if pre 
+    # Currently only interested in the coordinates and connectivity of pre/post nodes in the cube, skel_id can also be obtained
+    # from this call if needed 
+    
+    if len(data) < 1 or data is None:
+        raise Exception("Specified cube does not contain any synapses, make sure you are passing voxel coordinates") 
+    else:
+        pre_coords = dict()
+        post_coords = dict()
+        
+        for cx in data:
+            if cx[-1] == 15:  # presynaptic entry
+                pre_coords.update({cx[0]: [float(c) / float(v_size) for c in cx[1:4]]})
+            elif cx[-1] == 16:  # postsynaptic entry
+                node_xyz = node_coords(cx[7], cfg)
+                node_xyz = [float(c) / float(v_size) for c in node_xyz]
+                post_coords.setdefault(cx[0], []).append(node_xyz)
+    
+        return pre_coords, post_coords
+
 def cx_in_skel(skel_id: str, cfg: Config, r_nodes: List) -> Tuple:
     """
     Get a Dict of all connectors PRESYNAPTICally associated with a neuron, and the associated link data
