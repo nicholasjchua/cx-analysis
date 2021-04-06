@@ -141,7 +141,7 @@ def annot_to_id(annot: str, cfg: Config) -> int:
 
 
 # TREENODE QUERIES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def get_root_id(skel_id: str, cfg: Config) -> str:
+def get_root_id(skel_id: str, cfg: Config, verbose: bool=False) -> str:
     """
     Get the node ID corresponding to the root of a skeleton_id
     :param skel_id: str
@@ -150,15 +150,19 @@ def get_root_id(skel_id: str, cfg: Config) -> str:
     op_path = f"/skeletons/{skel_id}/root"
     res_code, root = do_get(op_path, cfg)
     node_id = root.get('root_id', None)
+    
     if node_id is None:
         raise Exception(f"Root node not found for skeleton: {skel_id}")
     else:
+        if verbose:
+            print(f"{skel_id} - root: {node_id}")
         return str(node_id)
 
 
 def fetch_node_data(node_id: str, cfg: Config) -> List:
     """
     Get data associated with a node ID
+    get treenode/{node}/compact-detail gives node data in a slightly diff order than skeletons/{skel}/compact-detail
     :param node_id: str
     :param cfg:
     :return: List, of data corresponding to the node
@@ -172,7 +176,7 @@ def fetch_node_data(node_id: str, cfg: Config) -> List:
         raise Exception(f"Could not find node with ID: {node_id}")
 
         
-def node_with_tag(skel_id: str, root_id: str, tag_regex: str, cfg: Config, first: bool=True) -> Union[str, List]:
+def node_with_tag(skel_id: str, root_id: str, tag_regex: str, cfg: Config, first: bool=True, verbose: bool=False) -> Union[str, List]:
     """
     Returns the node_id of the first node in the skeleton tagged with 'tag_regex'
 
@@ -194,21 +198,25 @@ def node_with_tag(skel_id: str, root_id: str, tag_regex: str, cfg: Config, first
     if len(data) == 0:
         raise Exception(f"Skeleton {skel_id} does not have a node tagged with {tag_regex}")
     elif first:
-        print(f"{skel_id}: root = {root_id}, with tag = {data}")
+        if verbose:
+            print(f"First node found in {skel_id} with {tag_regex} is {data[0][0]}")
         return str(data[0][0])
     else:
-        print("list of {len(data)} nodes and their node_data")
+        if verbose:
+            print(f"nodes with tag: {data}")
         return data
 
     
 def node_coords(node_id: str, cfg:Config) -> Tuple:
     """
     Get the x, y, z coordinates of a node using fetch_node_data,
-    TODO: check if nm or voxels
+    get treenode/{node}/compact-detail gives node data in a slightly diff order than skeletons/{skel}/compact-detail
     :param node_id:
     :return x, y, z
     """
     x, y, z = fetch_node_data(node_id, cfg)[2: 5]
+    if (x < 20) or (y < 20) or (z < 20):
+        raise Exception("Fetched data might be other node data, not coords. Check the result of fetch_node_data")
     return x, y, z
     
 

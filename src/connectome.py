@@ -52,11 +52,11 @@ class Connectome:
 
         pack_pickle(self.linkdf, path, "linkdf")
 
+        
     def save_cxdf(self, path: str=""):
         if path == "":
             path = self.cfg.out_dir
         pack_pickle(self.cxdf, path, "cxdf")
-
 
 
     def query_ids_by(self, by: str, key: str):
@@ -93,6 +93,7 @@ class Connectome:
         print(adj_mat)
         return adj_mat
 
+    
     # Private Methods ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def __fetch_skeletons(self) -> Tuple:
         """
