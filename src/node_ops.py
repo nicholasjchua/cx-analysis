@@ -205,7 +205,7 @@ def find_central_segment(skel_id: str, end_tag: str, cfg: Config, node_data: Lis
         
     if verbose:
         print(f"skel_id {skel_id} - central segment: {len(central_segment)} nodes, total: {len(node_list)} nodes")
-        
+    
     return central_segment
 
 
@@ -220,13 +220,13 @@ def find_end_points(node_list: List) -> List:
     return end_ids
 
 
-def measure_path_lengths(branch_list: Dict, cfg: Config=None, node_list: List=None) -> Dict:
+def measure_path_lengths(branch_list: Dict, cfg: Config=None, node_data: List=None) -> Dict:
     """
     Measure the path length of each branch segment in a skeleton
     """
-    if node_list is not None:
-        coord_map = {data[0]: data[2:5] for data in node_list}
-    elif (node_list is None) & (cfg is None):
+    if node_data is not None:
+        coord_map = {row[0]: row[2:5] for row in node_data}
+    elif (node_data is None) & (cfg is None):
         raise Exception("cfg is needed if node_list is not passed")
     else:
         coord_map = None
@@ -248,14 +248,14 @@ def seg_length(seg: List, cfg: Config=None, coord_map: Dict=None) -> float:
     return this_len 
 
 
-def measure_seg_distances(branch_list: Dict, cfg: Config=None, node_list: List=None) -> Dict:
+def measure_seg_distances(branch_list: Dict, cfg: Config=None, node_data: List=None) -> Dict:
     """
     Measure the euclidean distance between the first and last node of each branch segment in a 
     skeleton
     """
-    if node_list is not None:
-        coord_map = {data[0]: data[3:6] for data in node_list}
-    elif (node_list is None) & (cfg is None):
+    if node_data is not None:
+        coord_map = {data[0]: data[3:6] for data in node_data}
+    elif (node_data is None) & (cfg is None):
         raise Exception("cfg is needed if node_list is not passed")
     else:
         coord_map = None
