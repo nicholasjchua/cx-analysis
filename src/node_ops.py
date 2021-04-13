@@ -94,7 +94,7 @@ def segment_skeleton(skel_id: str, cfg: Config, node_data: List=None, restrict_t
     
     if (restrict_nodes is not None) and (restrict_tags is None):
         if verbose: 
-            print(f"excluded nodes passed to segment_skeleton: {skel_id} will be trimmed from {len(node_data)} to {len(restrict_nodes)} nodes")
+            print(f"Skeleton {skel_id}: {len(restrict_nodes)} nodes excluded")
         restrict_nodes = [int(r) for r in restrict_nodes]
         node_data = [n for n in node_data if int(n[0]) not in restrict_nodes]
     elif restrict_tags is not None:
