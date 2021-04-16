@@ -66,7 +66,17 @@ def run_morphology_analysis(C: Connectome, skel_ids: List[str],
                                                              node_data=data.skel_nodes)
     # Save results as json
     if save_file is not None:
-        if save_file[-5:] != '.json':
+        save_morphology_data(save_file, segments, central_segs, seg_lengths, seg_distance)
+    
+    return segments, central_segs, seg_lengths, seg_distances
+
+
+def save_morphology_data(fn: str, *, segments, central_segs, 
+                         seg_lengths, seg_distances) -> None:
+    """
+    Save results of run_morphology_analysis as a json
+    """
+    if save_file[-5:] != '.json':
             save_file = save_file + '.json'
             
         results = {'segments': segments, 
@@ -77,8 +87,6 @@ def run_morphology_analysis(C: Connectome, skel_ids: List[str],
         with open(save_file, 'x') as fh:
             json.dump(results, fh)
         print(f"Morphology data saved as {save_file}")
-    
-    return segments, central_segs, seg_lengths, seg_distances
     
     
 def strahler_order(segments: Dict, node_data: List, r_nodes: List=None):
@@ -96,9 +104,6 @@ def strahler_order(segments: Dict, node_data: List, r_nodes: List=None):
     # First current branch is the last node in segments[root]
     results = _strahler(segments, segments[root][-1], node_data, leaves, results)
     return results
-     
-    
-    #branch_order = 
 
 
 
@@ -133,6 +138,8 @@ def find_root_node(node_data: List) -> int:
         raise Exception(f"Found {len(root)} root nodes in node_list")
     else:
         return root[0]
+    
+    
     
 
 def find_leaf_nodes(node_data: List) -> List[int]:
