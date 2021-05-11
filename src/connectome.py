@@ -1,8 +1,8 @@
 from tqdm import tqdm
-from src.catmaid_queries import *
-from src.utils import *
-from src.skeleton import Skeleton
-from src.dataframe_tools import assemble_linkdf, assemble_cxdf
+from catmaid_queries import *
+from utils import *
+from skeleton import Skeleton
+from dataframe_tools import assemble_linkdf, assemble_cxdf
 from pandas import to_pickle
 """
 connectome.py
@@ -129,12 +129,12 @@ class Connectome:
 
         for id, n in ids_to_names.items():
             # neurons should be named omC2_[annotator initials]_[subtype]
-            if self.cfg.groupby is 'annotator':
+            if self.cfg.groupby == 'annotator':
                 g_flag = n.split('_')[-1]
                 if g_flag not in self.cfg.annotator_initials:
                     raise Exception(f"Could not find annotator initials in the neuron's name: {n}")
             # neurons should be named 'om[two char id]_[subtype]'
-            elif self.cfg.groupby is 'om':
+            elif self.cfg.groupby == 'om':
                 g_flag = n[2:4]
                 if n[0:2] != 'om':
                     raise Exception(f"Could not assign {n} to an ommatidia based on its neuron_name")

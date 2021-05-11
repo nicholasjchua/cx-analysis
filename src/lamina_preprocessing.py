@@ -4,14 +4,15 @@ from pprint import pprint
 import os.path
 from glob import glob
 import sys
-sys.path.append('/mnt/home/nchua/src/cx-analysis/src')
-import src.config
-from src.connectome import Connectome
-from src.utils import load_preprocessed_connectome
+#sys.path.append('/mnt/home/nchua/src/cx-analysis/src')
+
+from config import parse_cfg_file
+from connectome import Connectome
+from utils import load_preprocessed_connectome
 
 def main():
     analysis_dir = handle_args().cfg_path
-    cfg = src.config.parse_cfg_file(analysis_dir)
+    cfg = parse_cfg_file(analysis_dir)
     if len(glob(os.path.join(analysis_dir, "*preprocessed.pickle"))) == 0:
         C = Connectome(cfg)
         if cfg.save:

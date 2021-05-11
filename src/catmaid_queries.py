@@ -2,7 +2,7 @@ import pdb
 
 from typing import List, Tuple, Union, Dict, Sequence
 import requests
-from src.config import Config
+from config import Config
 
 ####################
 # REQUEST WRAPPERS #

@@ -52,58 +52,77 @@ def parse_cfg_file(path: str="") -> Config:
 
     with open(fp) as cfg_file:
         cfg = json.load(cfg_file)
+        
+    print(path)
 
     # Check that the config file has all the necessary info
-    if cfg['cm_url'] is "":
+    ### URL TO CATMAID SERVER ###
+    if cfg['cm_url'] == "":
         cm_url = os.environ['CM_URL']
     else:
         cm_url = cfg['cm_url']
         print("WARNING: Using Catmaid URL from config file. Remember to gitignore this if private.")
-
-    if cfg['cm_token'] is "":
+        
+    ### USER ACCESS TOKEN FOR CATMAID ###
+    if cfg['cm_token'] == "":
         cm_token = os.environ['CM_TOKEN']
     else:
         cm_token = cfg['cm_token']
         print("WARNING: User access token found in config file. Remember to gitignore this if private.")
-
+    
+    ### ANNOTATION ASSOCIATED WITH THE NEURONS YOU WANT TO QUERY ###
     if type(cfg['annot']) != str:
         raise Exception("A valid Catmaid annotation is required to fetch desired skeletons")
     else:
         annot = cfg['annot']
-
+    
+    ### CATMAID PROJECT ID ###
     if type(cfg['p_id']) != int:
         raise Exception("Project ID is an integer")
     else:
         p_id = cfg["p_id"]
 
+    ### CX COUNT THRESHOLD (NOT USED, TODO: REMOVE) ###
     if type(cfg['min_cx']) != int:
         raise Exception("Connection count threshold is an integer")
     else:
         min_cx = cfg['min_cx']
-
-    if not (cfg['save'] and cfg['log']):
+    
+    ### SAVE PREPROCESSED DATA ? ###
+    if cfg['save'] is False:
         save = False
-        log = False
         out_dir = ""
-        raise Warning("Data and logs will not be saved based on options listed in config file")
+        raise Warning("Data will not be saved based on options listed in config file")
     else:
-        save = cfg["save"]
-        log = cfg["log"]
+        save = True
+        # If no output dir given, save in location of cfg file
         if cfg['out_dir'] == "":
             out_dir = path
         else:
-            out_dir = cfg['out_dir']
-
+            out_dir = ""
+    
+    ### LOG (NOT YET IMPLEMENTED) ###
+    if cfg['log'] is False:
+        log = False
+        raise Warning("Log will not be kept based on options listed in config file")
+    else:
+        log = True
+    
+    ### ANNOTATIONS USED TO CATEGORIZE NEURONS ###
+    # Prespecified subtypes
     if type(cfg["subtypes"]) != list:
         raise Exception("Subtype categories need to be strings inside a list")
     else:
         subtypes = cfg["subtypes"]
-
+    
+    ### EXPECTED NUMBER OF EACH CATEGORY ###
     if len(subtypes) != len(cfg["expected_n"]):
         raise Exception("expected_n should be a the same length as subtypes")
     else:
         expected_n = cfg['expected_n']
 
+    ### ANNOTATIONS USED TO CATEGORIZE NEURONS ###
+    # ommatidium coord
     if cfg['groupby'] == 'om':
         groupby = 'om'
         annotator_initials = []  # don't need this if grouping by ommatidia
@@ -116,7 +135,9 @@ def parse_cfg_file(path: str="") -> Config:
     else:
         raise Exception("Invalid 'groupby' argument. Needs to be 'annotator' or 'om'. Former also requires"
                         "a list of annotator initials in the config file")
-
+    
+    ### RESTRICT ANALYSIS ON A TAGGED SEGMENT OF THE SKELETON ###
+    # Currently excludes all nodes/connections between the root node, and 'lamina_end'
     restrict = cfg['restrict_skeletons']
     # if cfg['restrict_skeletons']['restrict_tags'] == []:
     #     restrict =

@@ -3,7 +3,7 @@ import numpy as np
 from itertools import product
 from typing import Tuple
 #import src.connectome as cxt
-from src.skeleton import Skeleton
+from skeleton import Skeleton
 """
 dataframe_org.py
 Methods to extract and save summary data from a Connectome

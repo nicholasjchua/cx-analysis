@@ -8,7 +8,7 @@ from typing import Dict, List
 import pandas as pd
 
 #from src.connectome import Connectome
-from src.skeleton import Skeleton
+from skeleton import Skeleton
 
 # Save / Load ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def unpack_pickle(data_dir: str, f_regex: str):

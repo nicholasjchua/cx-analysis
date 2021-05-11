@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Dict, Union, Tuple, List
-from src.catmaid_queries import get_root_id, node_with_tag, skel_compact_detail, node_coords
-from src.config import Config
+from catmaid_queries import get_root_id, node_with_tag, skel_compact_detail, node_coords
+from config import Config
 from scipy.spatial import distance
 
 
@@ -19,10 +19,8 @@ def nodes_betwixt(skel_id: str, cfg: Config, restrict_tags: Union[str, Tuple], n
     """
     root_id = get_root_id(skel_id, cfg)
 
-    if nodes is None:
+    if node_data is None:
         node_data = skel_compact_detail(skel_id, cfg)
-    else:
-        node_data = nodes
 
     if type(restrict_tags) is str:
         start = root_id
@@ -186,6 +184,8 @@ def find_central_segment(skel_id: str, end_tag: str, cfg: Config, node_data: Lis
     """
     root_node = int(get_root_id(skel_id, cfg))
     target_node = int(node_with_tag(skel_id, root_node, end_tag, cfg))
+    
+    print(target_node)
     
     if node_data is None:
         node_data = fetch_node_data(skel_id, cfg)

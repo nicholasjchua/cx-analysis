@@ -96,7 +96,7 @@ def save_morphology_data(fn: str, segments: Dict, central_segs: Dict,   # kwags 
         json.dump(results, fh)
     print(f"Morphology data saved as {fn}")
     
-    
+
 def strahler_order(segments: Dict, node_data: List, r_nodes: List=[]):
     """
     Compute the strahler order of each branch point in a skel segments dict

@@ -1,6 +1,6 @@
-from src.catmaid_queries import *
-from src.config import Config
-from src.node_ops import nodes_betwixt
+from catmaid_queries import *
+from config import Config
+from node_ops import nodes_betwixt
 
 
 class Skeleton:
