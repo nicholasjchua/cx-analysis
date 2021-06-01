@@ -4,7 +4,8 @@ from pprint import pprint
 import os.path
 from glob import glob
 import sys
-#sys.path.append('/mnt/home/nchua/src/cx-analysis/src')
+
+sys.path.append(os.path.expanduser('~/src/cx-analysis/src'))
 
 from config import parse_cfg_file
 from connectome import Connectome

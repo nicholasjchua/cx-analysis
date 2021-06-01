@@ -3,7 +3,11 @@ import numpy as np
 from itertools import product
 from typing import Tuple
 #import src.connectome as cxt
-from skeleton import Skeleton
+import sys
+from os.path import expanduser
+
+sys.path.append(expanduser('~/src/cx-analysis/src'))
+from src.skeleton import Skeleton
 """
 dataframe_org.py
 Methods to extract and save summary data from a Connectome

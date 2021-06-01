@@ -1,8 +1,13 @@
 import numpy as np
 from typing import Dict, Union, Tuple, List
-from catmaid_queries import get_root_id, node_with_tag, skel_compact_detail, node_coords
-from config import Config
 from scipy.spatial import distance
+
+from src.catmaid_queries import get_root_id, node_with_tag, skel_compact_detail, node_coords
+from src.config import Config
+import sys
+from os.path import expanduser
+
+sys.path.append(expanduser('~/src/cx-analysis/src'))
 
 
 def nodes_betwixt(skel_id: str, cfg: Config, restrict_tags: Union[str, Tuple], node_data: List=None,

@@ -1,6 +1,10 @@
 import argparse
 import os.path
 from glob import glob
+import sys
+from os.path import expanduser
+
+sys.path.append(expanduser('~/src/cx-analysis/src'))
 import src.config
 from src.connectome import Connectome
 from src.utils import load_preprocessed_connectome

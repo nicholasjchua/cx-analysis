@@ -2,6 +2,10 @@ from typing import List, Dict, Tuple, Union
 import numpy as np
 import pandas as pd
 import json
+import sys
+from os.path import expanduser
+
+sys.path.append(expanduser('~/src/cx-analysis/src'))
 from src.node_ops import segment_skeleton, find_central_segment, measure_path_lengths, measure_seg_distances
 from src.connectome import Connectome
 from src.catmaid_queries import get_root_id

@@ -1,8 +1,11 @@
 import pdb
-
 from typing import List, Tuple, Union, Dict, Sequence
 import requests
-from config import Config
+import sys
+from os.path import expanduser
+
+sys.path.append(expanduser('~/src/cx-analysis/src'))
+from src.config import Config
 
 ####################
 # REQUEST WRAPPERS #
