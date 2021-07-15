@@ -76,7 +76,7 @@ def run_morphology_analysis(C: Connectome, skel_ids: List[str],
             
     # Save results as json
     if save_file is not None:
-        print(save_file)
+        #print(save_file)
         save_morphology_data(save_file, segments, central_segs, seg_lengths, seg_distances, strahler)
     
     return segments, central_segs, seg_lengths, seg_distances, strahler
