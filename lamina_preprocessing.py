@@ -5,11 +5,11 @@ import os.path
 from glob import glob
 import sys
 
-sys.path.append(os.path.expanduser('~/src/cx-analysis/src'))
+sys.path.append('.')
 
-from config import parse_cfg_file
-from connectome import Connectome
-from utils import load_preprocessed_connectome
+from cx_analysis.config import parse_cfg_file
+from cx_analysis.connectome import Connectome
+from cx_analysis.utils import load_preprocessed_connectome
 
 def main():
     analysis_dir = handle_args().cfg_path
