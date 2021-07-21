@@ -3,9 +3,6 @@ import argparse
 from pprint import pprint
 import os.path
 from glob import glob
-import sys
-
-sys.path.append('.')
 
 from cx_analysis.config import parse_cfg_file
 from cx_analysis.connectome import Connectome

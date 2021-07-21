@@ -3,10 +3,8 @@
 import argparse
 import os.path
 from glob import glob
-import sys
 from os.path import expanduser
 
-sys.path.append('.')
 import cx_analysis.config
 from cx_analysis.connectome import Connectome
 from cx_analysis.utils import load_preprocessed_connectome
