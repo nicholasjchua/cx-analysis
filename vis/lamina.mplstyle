@@ -11,6 +11,9 @@ figure.dpi:            400
 axes.spines.top:    False
 axes.spines.right:  False
 
+## LINES ##
+lines.markeredgewidth: 0
+
 ### SAVING FIGURES ###
 savefig.dpi:        figure
 savefig.format:     svg    
