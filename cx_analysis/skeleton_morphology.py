@@ -4,8 +4,6 @@ from typing import List, Dict, Tuple, Union
 import numpy as np
 import pandas as pd
 import json
-import sys
-from os.path import expanduser
 
 from cx_analysis.node_ops import segment_skeleton, find_central_segment, measure_path_lengths, measure_seg_distances
 from cx_analysis.connectome import Connectome
@@ -20,10 +18,10 @@ Methods to compute and save morphology data.
 
 def run_morphology_analysis(C: Connectome, skel_ids: List[str], 
                             restrict_tags: Union[Tuple, str]=None, 
-                            save_file: str=None, verbose: bool=False) -> Tuple[Dict]:
+                            save_file: str=None, verbose: bool=False) -> Tuple[Dict, Dict, Dict, Dict, Dict]:
     """
     Run a series of morphology measurements for specified skeletons in a Connectome object
-    
+
     Parameters
     ----------
     :param C: Connectome, object defined in cx_analysis.connectome
@@ -33,7 +31,7 @@ def run_morphology_analysis(C: Connectome, skel_ids: List[str],
     (has only been tested for cases with one restrict node, 'lamina_end')
     :param save_path: str, optional, full file path to save json of data.
     :param verbose: bool, print information on each skeleton for debugging
-    
+
     :return: tuple, containing four dictionaries: 
         segments,
         central_segs,
@@ -45,7 +43,7 @@ def run_morphology_analysis(C: Connectome, skel_ids: List[str],
     seg_lengths = dict()
     seg_distances = dict()
     strahler = dict()
-    
+
     for s in skel_ids:  # TODO make it loop through C instead 
         s = str(s) # skel_id keys in C.skel_data are str
         if s not in list(C.skel_data.keys()):
@@ -70,17 +68,17 @@ def run_morphology_analysis(C: Connectome, skel_ids: List[str],
             seg_distances[s] = measure_seg_distances(segments[s], 
                                                      cfg=C.cfg, 
                                                      node_data=data.skel_nodes)
-            
+
             strahler[s] = strahler_order(segments[s], data.skel_nodes,
                                          data.r_nodes)
         if verbose:
             print(f"Morphology data computed for {s}")
-            
+
     # Save results as json
     if save_file is not None:
         #print(save_file)
         save_morphology_data(save_file, segments, central_segs, seg_lengths, seg_distances, strahler)
-    
+
     return segments, central_segs, seg_lengths, seg_distances, strahler
 
 
@@ -91,19 +89,19 @@ def save_morphology_data(fn: str, segments: Dict, central_segs: Dict,   # kwags 
     """
     if fn[-5:] != '.json':
         fn = fn + '.json'
-            
+
     results = {'segments': segments, 
                 'central_segs': central_segs, 
                 'seg_lengths': seg_lengths, 
                 'seg_distances': seg_distances, 
                 'strahler': strahler}
-        
+
     with open(fn, 'x') as fh:
         json.dump(results, fh)
     print(f"Morphology data saved as {fn}")
-    
 
-def strahler_order(segments: Dict, node_data: List, r_nodes: List=[]):
+
+def strahler_order(segments: Dict, node_data: List, r_nodes: List=[]) -> Dict:
     """
     Compute the strahler order of each branch point in a skel segments dict
     """
@@ -115,17 +113,17 @@ def strahler_order(segments: Dict, node_data: List, r_nodes: List=[]):
     #root = find_root_node(node_data, skel_data, cfg)
     root = find_root_node(node_data)
     leaves = find_leaf_nodes(node_data) 
-    
+
     # precompute map of each branch point's next upstream or downstream bps
     pbps = find_parent_branches(segments)
     cbps = find_child_branches(segments)
-    
+
     # keep track of the points where we need to calculate SO 
     # leaf nodes cannot also be parent branch points
     #points = list(set(list(leaves + list(pbps.keys()) + [root])))
     points = list(set(list(leaves + list(cbps.keys()))))
     n_points = len(points)
-    
+
     so = dict()
     so_calculated = []
     # Deal with leaf nodes first, SO = 1
@@ -137,7 +135,7 @@ def strahler_order(segments: Dict, node_data: List, r_nodes: List=[]):
             so_calculated.append(leaf)
             # Append this leaf's SO to a list of each its parent
             so.setdefault(pbps[leaf], []).append(1)
-    
+
     while len(so_calculated) < (n_points - 1): 
         for p in points:
 
@@ -156,7 +154,7 @@ def strahler_order(segments: Dict, node_data: List, r_nodes: List=[]):
                     so.setdefault(pbps[p], []).append(so[p])
             else:
                 continue
-    
+
     if type(so[root]) is list:
         so[root] = max(so[root]) + 1
 
@@ -174,10 +172,10 @@ def strahler_order(segments: Dict, node_data: List, r_nodes: List=[]):
 #             child_orders.append(1)
 #         else:
 #             #child_results = _strahl(
-    
+
 #     results[current_segment] = max([_strahl(c) for c in child_branches])
-    
-    
+
+
 # def reverse_segments(segments: Dict) -> Dict:
 #     """
 #     Reverse the dictionaries of segmented nodes so that each segment is indexed
@@ -206,7 +204,6 @@ def find_child_branches(segments: Dict) -> Dict:
         child_bps.setdefault(seg[0], []).append(seg[-1])
     return child_bps
 
-    
 def find_root_node(node_data: List) -> int:
     """
     Quick and easy way to find the root node from node_data
@@ -216,14 +213,12 @@ def find_root_node(node_data: List) -> int:
                            [node_id, parent_id, ?, x, y, z, ?, ?]
     :return: int, node_id of root
     """
-    
+
     root = [int(n[0]) for n in node_data if n[1] is None] # no parent
     if len(root) != 1:  
         raise Exception(f"Found {len(root)} root nodes in node_list")
     else:
         return int(root[0])
-    #return int(get_root_id(skel_data.skel_id, cfg))
-    
 
 def find_leaf_nodes(node_data: List) -> List[int]:
     """
@@ -236,14 +231,12 @@ def find_leaf_nodes(node_data: List) -> List[int]:
     """
     parent_nodes = np.array(node_data).T[1]
     return [int(n[0]) for n in node_data if n[0] not in parent_nodes]
-    
-    
+
+
 def precomputed_children(node_data: List) -> Dict:
                 
     the_map = dict()
     for this_node in np.array(node_data).T[0]:
         the_map[this_node] = [n[0] for n in node_data if n[1] == int(this_node)]
-    
+
     return the_map
-        
-        

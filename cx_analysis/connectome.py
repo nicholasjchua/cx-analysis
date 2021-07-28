@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
-from tqdm import tqdm
+import numpy as np
+from os.path import expanduser
 from pandas import to_pickle
 import sys
-from os.path import expanduser
+from tqdm import tqdm
 
 from cx_analysis.utils import *
 from cx_analysis.skeleton import Skeleton
@@ -50,17 +51,16 @@ class Connectome:
         link_df = assemble_linkdf(self)
         cx_df, inter, unknowns = assemble_cxdf(self, link_df)
 
-
         return link_df, cx_df, inter, unknowns
 
-    def save_linkdf(self, path: str = ""):
+    def save_linkdf(self, path: str = "") -> None:
         if path == "":
             path = self.cfg.out_dir
 
         pack_pickle(self.linkdf, path, "linkdf")
 
         
-    def save_cxdf(self, path: str=""):
+    def save_cxdf(self, path: str="") -> None:
         if path == "":
             path = self.cfg.out_dir
         pack_pickle(self.cxdf, path, "cxdf")
@@ -70,15 +70,15 @@ class Connectome:
         """
         'by' can be 'group' or 'subtype'
         """
-        if by == 'group' or by.lower() == 'g':
+        if by.lower() in ['group', 'g']:
             return [skel_id for skel_id, data in self.skel_data.items() if data.group == key]
 
-        elif by == 'subtype' or by.lower() == 's':
+        elif by.lower() in ['subtype', 's']:
             return [skel_id for skel_id, data in self.skel_data.items() if data.subtype == key]
         else:
             raise Exception("Argument for 'by' needs to be either 'group' or 'subtype'")
 
-    def assemble_adj_mat(self):
+    def assemble_adj_mat(self) -> np.ndarray:
         id_mat = self.__get_id_mat()
         groups = sorted(self.grouping.keys())
         subtypes = sorted(self.cfg.subtypes)
@@ -123,7 +123,7 @@ class Connectome:
             skel_data[id] = Skeleton(id, n, g, self.cfg)
         return skel_data, ids_to_names, grouping
 
-    def __group_neurons(self, ids_to_names: Dict):
+    def __group_neurons(self, ids_to_names: Dict) -> Tuple[Dict, Dict]:
         """
         Use each neuron's names to form groups (in this case by ommatidia)
         :param ids_to_names:
@@ -176,8 +176,6 @@ class Connectome:
         ids = np.array(ids, dtype=str)
         return ids
 
-
-
     def __count_connections(self, pre_id: str, post_id: str) -> int:
 
         count = 0
@@ -185,15 +183,4 @@ class Connectome:
             if l['post_skel'] == post_id:
                 count += 1
         return count
-
-
-
-
-
-
-
-
-
-
-
 

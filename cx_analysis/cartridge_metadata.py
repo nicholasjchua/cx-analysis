@@ -30,15 +30,16 @@ def lamina_subtypes(rgb: bool=False) -> Dict:
         return c_code
 
 
-def hex_to_rgb(hex: str) -> Tuple:
-
+def hex_to_rgb(hex: str) -> Tuple[float, float, float, float]:
+    """ Converts a hex string like #AAACCC" to a tuple of the 3 colour bits composing it, plus a trailing value of 1 (default alpha) """
     h = hex.lstrip('#') + 'ff'
     return tuple(float(int(h[i: i+2], 16))/255.0 for i in (0, 2, 4, 6))
 
 
 
-def annotator_id() -> Dict:
-
+def annotator_id() -> Dict[str, str]:
+    """ Lookup table for who worked on what bodies in our project """
+    # TODO: Remove this before making the repo public
     initials = {'A2': 'MT',
                'A3': 'NC',
                'A4': 'BC',
@@ -67,11 +68,12 @@ def annotator_id() -> Dict:
     return initials
 
 
-def r7_inputs_handcount() -> Dict:
+def r7_inputs_handcount() -> Dict[str, int]:
     """
     Data on 24 ommatidia from Sep 5 2019
     :return:
     """
+    # TODO: Remove this before making the repo public
     r7_inputs = {'A2': 1,
                'A3':  9,
                'A4': 18,
@@ -99,11 +101,12 @@ def r7_inputs_handcount() -> Dict:
 
     return r7_inputs
 
-def ret_clusters() -> Dict:
+def ret_clusters() -> Dict[str, List[str]]:
     """
     DRA cluster based on connectivity data, VRA are R8vol > R7vol
     :return ret_clust: Dict mapping each om to (dorsal, central, or ventral)
     """
+    # TODO: Remove this before making the repo public
     ret_clust = {'dra': ['A4', 'A5', 'B5', 'B6', 'C5', 'C6',
                          'D6', 'D7', 'E6', 'E7'],
                  'vra': ['A0', 'A1', 'A2', 'B0', 'B3', 'C3',
@@ -111,11 +114,11 @@ def ret_clusters() -> Dict:
                  'v_trio': ['B1', 'C1', 'C2']}
     return ret_clust
 
-def anastasia_clusters() -> Dict:
+def anastasia_clusters() -> Dict[str, str]:
     """
     Based on Anastasia's clustering of ommatidia according to rhabdom measurements (190723)
-    :return:
     """
+    # TODO: Remove this before making the repo public
     r7_inputs = {'A2': 'classic',
                'A3':  'classic',
                'A4': 'dra minor',
@@ -146,6 +149,7 @@ def anastasia_clusters() -> Dict:
 
 
 def anastasia_clust_cmap() -> Dict:
+    # TODO: Remove this before making the repo public
 
     clusters = anastasia_clusters()
 
@@ -160,6 +164,7 @@ def anastasia_clust_cmap() -> Dict:
     return node_data
 
 def annotator_cmap() -> Dict:
+    # TODO: Remove this before making the repo public
 
     initials = annotator_id()
 
@@ -175,6 +180,7 @@ def annotator_cmap() -> Dict:
 
 
 def om_days_since() -> Dict:
+    # TODO: Remove this before making the repo public
 
     om_dates = {'A2': '12-2018',
                 'A3': '10-2018',
@@ -209,6 +215,7 @@ def om_days_since() -> Dict:
 
 
 def om_days_cmap() -> Dict:
+    # TODO: Remove this before making the repo public
 
     days = om_days_since()
 
@@ -228,6 +235,7 @@ def om_days_cmap() -> Dict:
 
 
 def r7_inputs_cmap() -> Dict:
+    # TODO: Remove this before making the repo public
 
     counts = r7_inputs_handcount()
     cmap = plt.get_cmap('RdPu', max([round(v) for k, v in counts.items()]))

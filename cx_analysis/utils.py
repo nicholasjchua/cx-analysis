@@ -11,7 +11,6 @@ import pandas as pd
 import sys
 from os.path import expanduser
 
-#from cx_analysis.connectome import Connectome
 from cx_analysis.skeleton import Skeleton
 
 # Save / Load ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -30,7 +29,7 @@ def unpack_pickle(data_dir: str, f_regex: str):
         return data
 
 
-def pack_pickle(data, data_dir: str, f_label: str, overwrite: bool=False):
+def pack_pickle(data, data_dir: str, f_label: str, overwrite: bool=False) -> None:
     fn = f"{yymmdd_today()}_{f_label}.pickle"
     file_path = os.path.join(os.path.expanduser(data_dir), fn)
     if os.path.isfile(file_path):
@@ -84,11 +83,6 @@ def div0(a: np.array, b: np.array, decimals: int=None) -> np.array:
 
 
 def yymmdd_today() -> str:
-
+    ''' Returns a time string representing today '''
     return datetime.today().strftime("%y%m%d")
-
-
-
-
-
 

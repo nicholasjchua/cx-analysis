@@ -11,7 +11,8 @@ from cx_analysis.config import Config
 ####################
 # REQUEST WRAPPERS #
 ####################
-def do_get(apipath: str, cfg: Config) -> Tuple:
+
+def do_get(apipath: str, cfg: Config) -> Tuple[bool, str]:
     """
     Wraps get requests. Performs specific action based on the operation specificed by apipath
     :param apipath: API path for a specific get operation, e.g. '/annotations/'
@@ -21,12 +22,12 @@ def do_get(apipath: str, cfg: Config) -> Tuple:
     p_url, token, p_id = cfg.cm_access()
     path = p_url + "/" + str(p_id) + apipath
     result = requests.get(path, headers={'X-Authorization': 'Token ' + token})
-    
+
     try:
         jresult = result.json()
     except ValueError:
         jresult = None
-        
+
     if jresult is not None:
         if 'type' in jresult:  # API doesn't provide another way to get at a python-objects-structured parse
             if jresult['type'] == "Exception":
@@ -43,7 +44,7 @@ def do_get(apipath: str, cfg: Config) -> Tuple:
         return False, f"Something went wrong with {apipath}, return code was {result.status_code}"
 
 
-def do_post(apipath: str, postdata: Dict, cfg: Config) -> Tuple:
+def do_post(apipath: str, postdata: Dict, cfg: Config) -> Tuple[bool, str]:
     """
     Wraps post requests. Performs specific action based on the operation specificed by apipath
     and the fields in postdata
@@ -51,22 +52,23 @@ def do_post(apipath: str, postdata: Dict, cfg: Config) -> Tuple:
     :return response: True if the request was successful
     :return results: A json of the results if successful, a string if not.
     """
+
     p_url, token, p_id = cfg.cm_access()
     path = p_url + "/" + str(p_id) + apipath
     result = requests.post(path, data=postdata, headers={'X-Authorization': 'Token ' + token})
-    
+
     try:
         jresult = result.json()
     except ValueError:
         jresult = None
-        
+
     if jresult is not None:
         if 'type' in jresult:
             if jresult['type'] == "Exception":
                 print("exception info:")
                 print(jresult['detail'])
                 return False, "Something went wrong"
-            
+
     if result.status_code == 200:
         if jresult is not None:
             return True, jresult
@@ -77,6 +79,7 @@ def do_post(apipath: str, postdata: Dict, cfg: Config) -> Tuple:
 
 
 # ANNOTATION QUERIES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 def skels_in_annot(annot: Union[int, str], cfg: Config) -> Tuple[List[str], List[str]]:
     """
     Given an annotation ID, produce lists of skeleton IDs and neuron names
@@ -84,6 +87,7 @@ def skels_in_annot(annot: Union[int, str], cfg: Config) -> Tuple[List[str], List
     :param:cfg: Config, object stores analysis configs
     :return: neuron_names: Lists of (skel_id, neuron_name)
     """
+
     if type(annot) is str:
         annot_id = annot_to_id(annot, cfg)
     else:
@@ -103,7 +107,6 @@ def skels_in_annot(annot: Union[int, str], cfg: Config) -> Tuple[List[str], List
         raise Exception("Entities are missing fields")
 
     return skeleton_ids, neuron_names
-
 
 def annot_in_skel(skel_id: str, cfg: Config) -> List[str]:
     """
@@ -154,7 +157,7 @@ def get_root_id(skel_id: str, cfg: Config, verbose: bool=False) -> str:
     op_path = f"/skeletons/{skel_id}/root"
     res_code, root = do_get(op_path, cfg)
     node_id = root.get('root_id', None)
-    
+
     if node_id is None:
         raise Exception(f"Root node not found for skeleton: {skel_id}")
     else:
@@ -179,7 +182,6 @@ def fetch_node_data(node_id: str, cfg: Config) -> List:
     else:
         raise Exception(f"Could not find node with ID: {node_id}")
 
-        
 def node_with_tag(skel_id: str, root_id: str, tag_regex: str, cfg: Config, first: bool=True, verbose: bool=False) -> Union[str, List]:
     """
     Returns the node_id of the first node in the skeleton tagged with 'tag_regex'
@@ -210,7 +212,7 @@ def node_with_tag(skel_id: str, root_id: str, tag_regex: str, cfg: Config, first
             print(f"nodes with tag: {data}")
         return data
 
-    
+
 def node_coords(node_id: str, cfg:Config) -> Tuple:
     """
     Get the x, y, z coordinates of a node using fetch_node_data,
@@ -222,7 +224,7 @@ def node_coords(node_id: str, cfg:Config) -> Tuple:
     if (x < 20) or (y < 20) or (z < 20):
         raise Exception("Fetched data might be other node data, not coords. Check the result of fetch_node_data")
     return x, y, z
-    
+
 
 # SKELETON QUERIES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def skel_compact_detail(skel_id: str, cfg: Config) -> List:
@@ -243,14 +245,14 @@ def skel_compact_detail(skel_id: str, cfg: Config) -> List:
 
 
 # CONNECTOR QUERIES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def cx_in_box(x: int, y: int, z: int, l: int, cfg: Config, v_size: int=8):
+def cx_in_box(x: int, y: int, z: int, l: int, cfg: Config, v_size: int=8) -> Tuple[Dict, Dict]:
     """
     Get a Dict of connectors (pre syn) and postsynaptic nodes bounded by a
     cube starting at coordinates x, y, z with side length l (voxels).
     voxel size (default = 8) needs to be specified as the API takes 'real world' coordinates (nanometers)
     Returns voxel coordinates
     """
-    
+
     op_path = f"/connectors/in-bounding-box"
     post_data = {'minx': x * v_size,
                  'miny': y * v_size,
@@ -266,13 +268,13 @@ def cx_in_box(x: int, y: int, z: int, l: int, cfg: Config, v_size: int=8):
     # field[0] = connector ID, field[1:4] = (x, y, z) in world coords, field[4] = skel_id of connector, field[-1] = 15 if post, 16 if pre 
     # Currently only interested in the coordinates and connectivity of pre/post nodes in the cube, skel_id can also be obtained
     # from this call if needed 
-    
+
     if len(data) < 1 or data is None:
         raise Exception("Specified cube does not contain any synapses, make sure you are passing voxel coordinates") 
     else:
         pre_coords = dict()
         post_coords = dict()
-        
+
         for cx in data:
             if cx[-1] == 15:  # presynaptic entry
                 pre_coords.update({cx[0]: [float(c) / float(v_size) for c in cx[1:4]]})
@@ -280,7 +282,7 @@ def cx_in_box(x: int, y: int, z: int, l: int, cfg: Config, v_size: int=8):
                 node_xyz = node_coords(cx[7], cfg)
                 node_xyz = [float(c) / float(v_size) for c in node_xyz]
                 post_coords.setdefault(cx[0], []).append(node_xyz)
-    
+
         return pre_coords, post_coords
 
 def cx_in_skel(skel_id: str, cfg: Config, r_nodes: List) -> Tuple:
@@ -305,23 +307,13 @@ def cx_in_skel(skel_id: str, cfg: Config, r_nodes: List) -> Tuple:
             if link[3] == 15 and str(link[1]) in r_nodes:
                 # print(f"Found a restricted connector {cx_id}")
                 r_connectors.add(cx_id)
-                continue
             elif link[3] == 16:
-                '''
-                if r_nodes is not None and str(link[1]) in r_nodes:
-                    print(f"Found a restricted connector {cx_id}")
-                    r_connectors.add(cx_id)
-                    continue
-                else:
-                '''
                 tmp_link_data.append({'link_id': str(link[0]),
                                       'pre_skel': skel_id,
                                       'post_skel': str(link[2]),
                                       'post_node': str(link[1]),
                                       'cx_id': cx_id})
                 tmp_connector_data.setdefault(cx_id, []).append(link)
-            else:
-                continue
     # Filter out restricted ones
     if len(r_connectors) > 0:
         link_data = [l for l in tmp_link_data if l['cx_id'] not in r_connectors]
@@ -331,8 +323,8 @@ def cx_in_skel(skel_id: str, cfg: Config, r_nodes: List) -> Tuple:
         connector_data = tmp_connector_data
 
     return connector_data, link_data, list(r_connectors)
-    
-    
+
+ 
 def cx_coords(cx_id: str, cfg: Config) -> Tuple:
     """
     cx_coords
@@ -341,3 +333,4 @@ def cx_coords(cx_id: str, cfg: Config) -> Tuple:
     op_path = f"/connectors/{cx_id}"
     res_code, data = do_get(op_path, cfg)
     return data['x'], data['y'], data['z']
+

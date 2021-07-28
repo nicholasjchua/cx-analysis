@@ -183,7 +183,7 @@ def check_dist(n1: str, n2: str, cfg: Config) -> float:
 
 
 
-def find_central_segment(skel_id: str, end_tag: str, cfg: Config, node_data: List=None, restrict_nodes: List=None, verbose: bool=False):
+def find_central_segment(skel_id: str, end_tag: str, cfg: Config, node_data: List=None, restrict_nodes: List=None, verbose: bool=False) -> List:
     """
     Get a list of nodes between a tagged ending and the root 
     """
@@ -276,15 +276,4 @@ def seg_distance(seg: List, cfg: Config=None, coord_map: Dict=None) -> float:
     Euclidean distance of the first and last points of a segment
     """
     return dist_two_nodes(seg[0], seg[-1], cfg, coord_map)
-
-
-# def node_coords(node_id: str, cfg:Config) -> Tuple:
-#     """
-#     Get the x, y, z coordinates of a node using fetch_node_data,
-#     TODO: check if nm or voxels
-#     :param node_id:
-#     :return x, y, z
-#     """
-#     x, y, z = fetch_node_data(node_id, cfg)[2: 5]
-#     return x, y, z
 

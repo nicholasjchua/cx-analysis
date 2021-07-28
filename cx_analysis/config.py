@@ -30,11 +30,18 @@ _Config = namedtuple(
     ]
 )
 
+##################
+# The Config object holds information representing experimental configuration,
+# common to most code used in this library.
 
 class Config(_Config):
 
     def cm_access(self) -> Tuple:
         return self.cm_url, self.cm_token, self.p_id
+
+
+##################
+# Class Methods
 
 def parse_cfg_file(path: str="") -> Config:
     """

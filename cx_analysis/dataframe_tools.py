@@ -1,19 +1,19 @@
 #!/usr/bin/env python
 
-import pandas as pd
-import numpy as np
 from itertools import product
-from typing import Tuple
-#import cx_analysis.connectome as cxt
-import sys
+import numpy as np
 from os.path import expanduser
+import pandas as pd
+import sys
+from typing import List, Tuple
 
 from cx_analysis.skeleton import Skeleton
 
-"""
-dataframe_org.py
-Methods to extract and save summary data from a Connectome
-"""
+
+#####################
+# dataframe_org.py
+#
+# Methods to extract and save summary data from a Connectome
 
 def assemble_linkdf(C) -> pd.DataFrame:
     """
@@ -57,7 +57,7 @@ def assemble_linkdf(C) -> pd.DataFrame:
     return df
 
 
-def assemble_cxdf(C, linkdf) -> Tuple:
+def assemble_cxdf(C, linkdf) -> Tuple[pd.DataFrame, List, List]:
     """
     Longform DataFrame that has a row for each group of neurons/each connection type 
     (CURRENTLY EXCLUDES INTEROM)

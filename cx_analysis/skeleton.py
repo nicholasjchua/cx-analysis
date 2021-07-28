@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 
-import sys
-from os.path import expanduser
-
 from cx_analysis.catmaid_queries import *
 from cx_analysis.config import Config
 from cx_analysis.node_ops import nodes_betwixt
