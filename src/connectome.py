@@ -153,23 +153,26 @@ class Connectome:
     def __get_id_mat(self) -> np.array:
 
         group_list = sorted(self.grouping.keys())
-        subtypes = sorted(self.cfg.subtypes)
+        st_n = {st: n for st, n in zip(self.cfg.subtypes, self.cfg.expected_n)}
+        sts = sorted(self.cfg.subtypes)
         ids = []
         for i, g in enumerate(group_list):
             skels_in_g = self.query_ids_by('group', g)
-            tmp = []  # the row for each group
-            for ii, s in enumerate(subtypes):
-                skels_in_s_and_g = [skel for skel in skels_in_g if skel in self.query_ids_by('subtype', s)]
-                if len(skels_in_s_and_g) == abs(self.cfg.expected_n[ii]):
-                    tmp = [*tmp, *skels_in_s_and_g]
-                elif len(skels_in_s_and_g) == 0 and self.cfg.expected_n[ii] == -1:
-                    tmp.append('-1')
+            gs_ids = []  # the row for each group
+            for ii, s in enumerate(sts):
+                skel_in_s = self.query_ids_by('subtype', s)
+                skels_in_s_and_g = [skel for skel in skels_in_g if skel in skel_in_s]
+                if len(skels_in_s_and_g) == abs(st_n[s]):
+                    gs_ids = [*gs_ids, *skels_in_s_and_g]
+                elif (len(skels_in_s_and_g) == 0) and (st_n[s] == -1):
+                    gs_ids.append('-1')
                     print(f'Warning: No neuron of type {s} found in {g}')
                 else:
-                    raise Exception(f"Unexpected number of neurons for group: {g} subtype: {s}."
-                                    f"Got the following ids: \n{skels_in_s_and_g}")
+                    raise Exception(f"Unexpected number of neurons for group: {g} subtype: {s}. " +
+                                    f"Got the following ids: \n{skels_in_s_and_g}. " + 
+                                    f"Expected: {st_n[s]}")
 
-            ids.append(tmp)
+            ids.append(gs_ids)
         ids = np.array(ids, dtype=str)
         return ids
 

@@ -64,6 +64,10 @@ def shortened_st(labels: List) -> List:
             short_labels.append(l[0] + l[-1])
         elif l == 'centri':
             short_labels.append('Am')
+        elif l == 'R_duet':
+            short_labels.append('R2+R5')
+        elif l == 'R_quartet':
+            short_labels.append('R1+R3+R4+R6')
         else:
             short_labels.append(l)
             
