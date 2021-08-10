@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import argparse
-from pprint import pprint
 import os.path
 from glob import glob
 
@@ -8,14 +7,20 @@ from cx_analysis.config import parse_cfg_file
 from cx_analysis.connectome import Connectome
 from cx_analysis.utils import load_preprocessed_connectome
 
+
 def main():
+    """
+    This script takes a path to a directory containing the config file. This directory will be used
+    to store analysis results unless a different save_path is specified in the config
+    """
     analysis_dir = handle_args().cfg_path
     cfg = parse_cfg_file(analysis_dir)
+    # check for preprocessed connectome
     if len(glob(os.path.join(analysis_dir, "*preprocessed.pickle"))) == 0:
         C = Connectome(cfg)
         if cfg.save:
             C.save_connectome()
-
+    # load preprocessed data if available
     else:
         print(f"Preprocessed connectome data found at: {analysis_dir}. "
               f"Use an empty directory to preform a new fetch")

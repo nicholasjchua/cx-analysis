@@ -18,13 +18,13 @@ _Config = namedtuple(
         'cm_token',
         'p_id',
         'annot',
-        'subtypes',
+        'cell_types',
         'expected_n',
-        'groupby',
+        'group_by',
         'annotator_initials',
         'min_cx',
-        'save',
         'log',
+        'save_preprocessed',
         'out_dir',
         'restrict',
     ]
@@ -57,14 +57,11 @@ def parse_cfg_file(path: str="") -> Config:
         path = os.path.split(fp)[0]
     else:  # if path to directory given
         fp = glob(os.path.join(os.path.expanduser(path), '*.json'))[0]
-    print(fp)
 
     with open(fp) as cfg_file:
         cfg = json.load(cfg_file)
-        
-    print(path)
 
-    # Check that the config file has all the necessary info
+    ##### CHECK CONFIGS #####
     ### URL TO CATMAID SERVER ###
     if cfg['cm_url'] == "":
         cm_url = os.environ['CM_URL']
@@ -91,24 +88,18 @@ def parse_cfg_file(path: str="") -> Config:
     else:
         p_id = cfg["p_id"]
 
-    ### CX COUNT THRESHOLD (NOT USED, TODO: REMOVE) ###
-    if type(cfg['min_cx']) != int:
-        raise Exception("Connection count threshold is an integer")
-    else:
-        min_cx = cfg['min_cx']
-    
     ### SAVE PREPROCESSED DATA ? ###
-    if cfg['save'] is False:
-        save = False
+    if cfg['save_preprocessed'] is False:
+        save_preprocessed = False
         out_dir = ""
         raise Warning("Data will not be saved based on options listed in config file")
     else:
-        save = True
-        # If no output dir given, save in location of cfg file
+        save_preprocessed = True
+        # If no output dir given, save data at location of cfg file
         if cfg['out_dir'] == "":
             out_dir = path
         else:
-            out_dir = ""
+            out_dir = cfg['out_dir']
     
     ### LOG (NOT YET IMPLEMENTED) ###
     if cfg['log'] is False:
@@ -117,56 +108,52 @@ def parse_cfg_file(path: str="") -> Config:
     else:
         log = True
     
-    ### ANNOTATIONS USED TO CATEGORIZE NEURONS ###
-    # Prespecified subtypes
-    if type(cfg["subtypes"]) != list:
-        raise Exception("Subtype categories need to be strings inside a list")
+    ### CELLTYPE ANNOTATIONS ###
+    # Each skeleton queried from CATMAID must be annotated with only one of these labels
+    if type(cfg["cell_types"]) != list:
+        raise Exception("Celltype categories need to be strings inside a list")
     else:
-        subtypes = cfg["subtypes"]
+        cell_types = cfg['cell_types']
     
     ### EXPECTED NUMBER OF EACH CATEGORY ###
-    if len(subtypes) != len(cfg["expected_n"]):
+    if len(cell_types) != len(cfg["expected_n"]):
         raise Exception("expected_n should be a the same length as subtypes")
     else:
         expected_n = cfg['expected_n']
 
-    ### ANNOTATIONS USED TO CATEGORIZE NEURONS ###
-    # ommatidium coord
-    if cfg['groupby'] == 'om':
-        groupby = 'om'
+    ### GROUPING ###
+    # ommatidia position on the hex grid
+    if cfg['group_by'] == 'om':
+        group_by = 'om'
         annotator_initials = []  # don't need this if grouping by ommatidia
-    elif cfg['groupby'] == 'annotator':
+    elif cfg['group_by'] == 'annotator':
         if len(cfg['annotator_initials']) > 1:
-            groupby = 'annotator'
+            group_by = 'annotator'
             annotator_initials = cfg['annotator_initials']  # for validation experiment
         else:
-            raise Exception("Annotator initials missing from config file (required when groupby=annotator)")
+            raise Exception("Annotator initials missing from config file (required when group_by=annotator)")
     else:
-        raise Exception("Invalid 'groupby' argument. Needs to be 'annotator' or 'om'. Former also requires"
+        raise Exception("Invalid 'group_by' argument. Needs to be 'annotator' or 'om'. Former also requires"
                         "a list of annotator initials in the config file")
     
     ### RESTRICT ANALYSIS ON A TAGGED SEGMENT OF THE SKELETON ###
-    # Currently excludes all nodes/connections between the root node, and 'lamina_end'
+    # For a list of specified cell_types, restrict analysis to the segment contained between their root node and
+    # the specified restrict_tag
     restrict = cfg['restrict_skeletons']
-    # if cfg['restrict_skeletons']['restrict_tags'] == []:
-    #     restrict =
-    # else:
-    #     restrict = cfg['restrict_skeletons']
 
     return Config(
         source=fp,
+        out_dir=out_dir,
+        save_preprocessed=save_preprocessed,
         cm_url=cm_url,
         cm_token=cm_token,
         p_id=p_id,
         annot=annot,
-        subtypes=subtypes,
+        cell_types=cell_types,
         expected_n=expected_n,
-        groupby=groupby,
+        group_by=group_by,
         annotator_initials=annotator_initials,
-        min_cx=min_cx,
-        save=save,
         log=log,
-        out_dir=out_dir,
-        restrict=restrict
+        restrict=restrict,
     )
 

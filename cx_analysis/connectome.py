@@ -5,7 +5,6 @@ from os.path import expanduser
 from pandas import to_pickle
 import sys
 from tqdm import tqdm
-
 from cx_analysis.utils import *
 from cx_analysis.skeleton import Skeleton
 from cx_analysis.catmaid_queries import *
@@ -21,6 +20,7 @@ the API requests to Catmaid. The Connectome object can be saved as a pkl file.
 methods in dataframe_tools.py Various summaries (dar
 """
 
+
 class Connectome:
 
     def __init__(self, cfg):
@@ -31,76 +31,63 @@ class Connectome:
         self.grouping = self.__fetch_skeletons()
         self.adj_mat = self.assemble_adj_mat()
 
-        self.linkdf, self.cxdf, \
-        self.inter, self.unknowns = self.assemble_dataframes()
+        self.linkdf = assemble_linkdf(self)
+        self.cxdf, self.inter, self.unknowns = assemble_cxdf(self, self.linkdf)
 
-    def print_adj_mat(self):
-        # TODO get the stuff that formats and prints adjacency matrices from 'connectivity_analysis'
-        A = np.ones((self.adj_mat.shape[0], len(self.cfg.subtypes), len(self.cfg.subtypes)), dtype=int)
-
-    def save_connectome(self, path: str = "", overwrite: bool=False) -> None:
+    def save_connectome(self, path: str = "", overwrite: bool = False) -> None:
         """
-        save Connectome instance as .pickle file
+        Save preprocessed connectome as .pickle file
         """
         if path == "":
             path = self.cfg.out_dir
         pack_pickle(self, path, "preprocessed")
 
-    def assemble_dataframes(self, save=True) -> Tuple:
-
-        link_df = assemble_linkdf(self)
-        cx_df, inter, unknowns = assemble_cxdf(self, link_df)
-
-        return link_df, cx_df, inter, unknowns
-
     def save_linkdf(self, path: str = "") -> None:
         if path == "":
             path = self.cfg.out_dir
-
         pack_pickle(self.linkdf, path, "linkdf")
 
-        
-    def save_cxdf(self, path: str="") -> None:
+    def save_cxdf(self, path: str = "") -> None:
         if path == "":
             path = self.cfg.out_dir
         pack_pickle(self.cxdf, path, "cxdf")
 
-
     def query_ids_by(self, by: str, key: str):
         """
-        'by' can be 'group' or 'subtype'
+        Query skeleton IDs by 'group' or 'celltype'
         """
         if by.lower() in ['group', 'g']:
             return [skel_id for skel_id, data in self.skel_data.items() if data.group == key]
 
-        elif by.lower() in ['subtype', 's']:
-            return [skel_id for skel_id, data in self.skel_data.items() if data.subtype == key]
+        elif by.lower() in ['celltype', 't']:
+            return [skel_id for skel_id, data in self.skel_data.items() if data.celltype == key]
         else:
-            raise Exception("Argument for 'by' needs to be either 'group' or 'subtype'")
+            raise Exception("Argument for 'by' needs to be either 'group' or 'celltype'")
 
     def assemble_adj_mat(self) -> np.ndarray:
+        """
+        TODO: I think this is unused
+        :return:
+        """
+
         id_mat = self.__get_id_mat()
         groups = sorted(self.grouping.keys())
-        subtypes = sorted(self.cfg.subtypes)
+        cell_types = sorted(self.cfg.cell_types)
 
         adj_mat = np.zeros((len(groups), id_mat.shape[1], id_mat.shape[1]), dtype=int)
 
         for i, g in enumerate(groups):
             for j, pre_skel in enumerate(id_mat[i]):
                 if pre_skel == '-1':  # cartridges with missing neurons coded with -1 (only allowed for L4)
-                    #print(f'PRESKEL is -1')
                     adj_mat[i, j, :] = -1
                     continue
-
                 for k, post_skel in enumerate(id_mat[i]):
                     if post_skel == '-1':
                         adj_mat[i, j, k] = -1
                     else:
                         adj_mat[i, j, k] = self.__count_connections(pre_skel, post_skel)
-        print(adj_mat)
         return adj_mat
 
-    
     # Private Methods ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def __fetch_skeletons(self) -> Tuple:
         """
@@ -109,7 +96,6 @@ class Connectome:
         :returns neurons_ids: [(neuron_name, skel_id)]
         """
         # Catmaid Access
-
         skel_ids, neuron_names = skels_in_annot(self.cfg.annot, self.cfg)
         ids_to_names = {s: n for s, n in zip(skel_ids, neuron_names)}
         grouping, ids_to_groups = self.__group_neurons(ids_to_names)
@@ -130,7 +116,6 @@ class Connectome:
         :return groups: Dict, group: [list of skel_ids]
         :return ids_to_groups: Dict, skel_id: group
         """
-
         groups = dict()  # {grouping: [skel_ids]}
         ids_to_groups = dict.fromkeys(list(ids_to_names.keys()))
 
@@ -155,26 +140,26 @@ class Connectome:
 
     def __get_id_mat(self) -> np.array:
 
-        group_list = sorted(self.grouping.keys())
-        subtypes = sorted(self.cfg.subtypes)
+        groups = sorted(self.grouping.keys())
+        cell_types_n = zip(self.cfg.cell_types, self.cfg.expected_n)
         ids = []
-        for i, g in enumerate(group_list):
+
+        for i, g in enumerate(groups):
             skels_in_g = self.query_ids_by('group', g)
-            tmp = []  # the row for each group
-            for ii, s in enumerate(subtypes):
-                skels_in_s_and_g = [skel for skel in skels_in_g if skel in self.query_ids_by('subtype', s)]
-                if len(skels_in_s_and_g) == abs(self.cfg.expected_n[ii]):
-                    tmp = [*tmp, *skels_in_s_and_g]
-                elif len(skels_in_s_and_g) == 0 and self.cfg.expected_n[ii] == -1:
-                    tmp.append('-1')
-                    print(f'Warning: No neuron of type {s} found in {g}')
+            sub_ids = []  # the row for each group
+            for t, n in cell_types_n:
+                skels_in_s_and_g = [skel for skel in skels_in_g if skel in self.query_ids_by('cell_type', t)]
+                if len(skels_in_s_and_g) == abs(n):
+                    sub_ids = [*sub_ids, *skels_in_s_and_g]
+                elif len(skels_in_s_and_g) == 0 and n == -1:
+                    sub_ids.append('-1')
+                    print(f'Warning: No neuron of type {t} found in {g}')
                 else:
-                    raise Exception(f"Unexpected number of neurons for group: {g} subtype: {s}."
+                    raise Exception(f"Unexpected number of neurons for group: {g} subtype: {t}."
                                     f"Got the following ids: \n{skels_in_s_and_g}")
 
-            ids.append(tmp)
-        ids = np.array(ids, dtype=str)
-        return ids
+            ids.append(sub_ids)
+        return np.array(ids, dtype=str)
 
     def __count_connections(self, pre_id: str, post_id: str) -> int:
 
@@ -183,4 +168,3 @@ class Connectome:
             if l['post_skel'] == post_id:
                 count += 1
         return count
-

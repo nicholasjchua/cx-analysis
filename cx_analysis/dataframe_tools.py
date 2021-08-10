@@ -2,7 +2,7 @@
 
 from itertools import product
 import numpy as np
-from os.path import expanduser
+import os.path
 import pandas as pd
 import sys
 from typing import List, Tuple
@@ -37,11 +37,11 @@ def assemble_linkdf(C) -> pd.DataFrame:
                 post_om = 'UNKNOWN'
             else:
                 post_name = post_sk.name
-                post_type = post_sk.subtype
+                post_type = post_sk.cell_type
                 post_om = post_sk.group
             # TODO pd.Category this?
             df_rows.append({'pre_neuron': pre_sk.name,
-                            'pre_type': pre_sk.subtype,
+                            'pre_type': pre_sk.cell_type,
                             'pre_om': pre_sk.group,
                             'pre_skel': pre_id,
                             'post_neuron': post_name,
@@ -57,19 +57,15 @@ def assemble_linkdf(C) -> pd.DataFrame:
     return df
 
 
-def assemble_cxdf(C, linkdf) -> Tuple[pd.DataFrame, List, List]:
+def assemble_cxdf(C, linkdf: pd.DataFrame) -> Tuple[pd.DataFrame, List, List]:
     """
-    Longform DataFrame that has a row for each group of neurons/each connection type 
-    (CURRENTLY EXCLUDES INTEROM)
+    Longform DataFrame that has a row for each group of neurons/each connection type
     requires link_df
     :param C: Connectome
     :return cxdf, inter, unknowns:
     """
-    cx_types = [f"{pre}->{post}"
-                for pre, post in product(C.cfg.subtypes, C.cfg.subtypes)]
-
+    cx_types = [f"{pre}->{post}" for pre, post in product(C.cfg.cell_types, C.cfg.cell_types)]
     om_list = sorted([str(k) for k in C.grouping.keys()])
-
     counts = np.zeros((len(om_list), len(cx_types)), dtype=int)
     inter = []
     unknowns = []
@@ -101,16 +97,16 @@ def assemble_cxdf(C, linkdf) -> Tuple[pd.DataFrame, List, List]:
     return df, inter, unknowns
 
 
-def extract_connector_table(linkdf: pd.DataFrame) -> pd.DataFrame:
+def assemble_connector_table(linkdf: pd.DataFrame) -> pd.DataFrame:
     """
     Extract synaptic terminals from link dataframe
-    TODO: split into two dataframes (one of summary, the other for cx's partner subtype breakdown)
+    TODO: split into two dataframes (one of summary, the other for cx's partner cell_type breakdown)
     :param link_df:
     :return:
     """
     cx_data = dict.fromkeys(np.unique(linkdf['cx_id']))
     p_counts = dict.fromkeys(np.unique(linkdf['cx_id']))
-    subtypes = sorted(np.unique(linkdf['post_type']))
+    cell_types = sorted(np.unique(linkdf['post_type']))
 
     for cx, links in linkdf.groupby('cx_id'):
         cx_data[cx] = dict()
@@ -119,9 +115,9 @@ def extract_connector_table(linkdf: pd.DataFrame) -> pd.DataFrame:
         cx_data[cx].update({'pre_om': np.unique(links['pre_om'])[0],
                          'pre_type': np.unique(links['pre_type'])[0],
                          'pre_neuron': np.unique(links['pre_neuron'])[0]})
-        # Number of partners belonging to each subtype
+        # Number of partners belonging to each cell_type
         type_freq = links['post_type'].value_counts().to_dict()
-        cx_data[cx].update({str(s): type_freq.get(s, 0) for s in subtypes})
+        cx_data[cx].update({str(s): type_freq.get(s, 0) for s in cell_types})
 
         # Ommatidia of post partners (should be the same)
         partner_oms = np.unique(links['post_om'])
@@ -141,9 +137,9 @@ def assemble_cxvectors(linkdf: pd.DataFrame, external: bool=True, excl_unknowns:
     Get a cxvectors dataframe from linkdf. 
     :param link_df: pd.DataFrame, longform containing a row for each synaptic contact, 
     :param external: bool, when True: synapses between neurons from different ommatidia are counted as a seperate category. 
-    The postsynaptic (recipient) subtype for interommatidial connections will start with an 'e' 
+    The postsynaptic (recipient) cell_type for interommatidial connections will start with an 'e'
     :param exclude_unknowns: bool, when True (default): synapses with an unidentified partner will not be counted. 
-    When False: 'UNKNOWN' is treated like another subtype, giving the dataframe columns like 'R2R5->UNKNOWN' 
+    When False: 'UNKNOWN' is treated like another cell_type, giving the dataframe columns like 'R2R5->UNKNOWN'
     
     
     Note: filtering certain connection types (e.g. discard connections with mean < 1.0) SHOULD NOT be done here
@@ -154,8 +150,8 @@ def assemble_cxvectors(linkdf: pd.DataFrame, external: bool=True, excl_unknowns:
         linkdf = linkdf.loc[((linkdf['pre_om'] != 'UNKNOWN') & (linkdf['post_om'] != 'UNKNOWN'))]
     
     oms = np.unique(linkdf['pre_om'])
-    subtypes = np.unique([*linkdf['pre_type'], *linkdf['post_type']])
-    ctypes = [f'{pre}->{post}' for pre, post in [p for p in product(subtypes, subtypes)]]
+    cell_types = np.unique([*linkdf['pre_type'], *linkdf['post_type']])
+    ctypes = [f'{pre}->{post}' for pre, post in [p for p in product(cell_types, cell_types)]]
     # initialize df with all counts = 0
     df = pd.DataFrame(np.zeros((len(oms), len(ctypes)), dtype=int), index=oms, columns=ctypes)
     
@@ -204,8 +200,8 @@ def assemble_rhabdomere_df(full_df: pd.DataFrame) -> pd.DataFrame:
         assert(len(this_om) == 2)  # check om name
         assert(len(z_st_cols) == 9)  # check that there are 9 photoreceptors
 
-        for ii, this_st in this_range.iloc[0, 4:13].items():  # subtypes 
-            if '(' in this_st:  # some have the old subtype nomenclature in ()
+        for ii, this_st in this_range.iloc[0, 4:13].items():  # cell_types
+            if '(' in this_st:  # some have the old cell_type nomenclature in ()
                 this_st = this_st.split('(')[0]
                 
             this_st = this_st.strip().upper()
@@ -222,17 +218,16 @@ def assemble_rhabdomere_df(full_df: pd.DataFrame) -> pd.DataFrame:
                 this_st = 'R7p'
 
             data.append(pd.DataFrame({'om': [this_om]*rows, 
-                                      'subtype': [this_st]*rows, 
+                                      'cell_type': [this_st]*rows,
                                       'z-index': z_inds, 
                                       'angle': this_range.iloc[4:, ii]}))
 
     df = pd.concat(data, ignore_index=True)
     df = df.astype({'om': str, 
-                    'subtype': str,
+                    'cell_type': str,
                     'z-index': float, 
                     'angle': float})
-    
-    #compute some secondary results
+
     return rhabdomere_computations(df)
 
     
@@ -241,7 +236,7 @@ def rhabdomere_computations(df: pd.DataFrame) -> pd.DataFrame:
     from math import isnan
     
     for i, om_rows in df.groupby('om'):
-        for ii, rows in om_rows.groupby('subtype'):
+        for ii, rows in om_rows.groupby('cell_type'):
             n = 0
             for iii, row in rows.sort_values('z-index').iterrows():
                 df.loc[iii, 'n'] = int(n)
@@ -254,14 +249,12 @@ def rhabdomere_computations(df: pd.DataFrame) -> pd.DataFrame:
                     df.loc[iii, 'interval_z'] = np.nan
                     previous = (iii, df.loc[iii, 'angle'])
                 elif isnan(df.loc[iii, 'angle']):
-                    #print(f"NaN found for {i}_{ii} measurement: {n}")
                     df.loc[iii, '_diff'] = np.nan
                     df.loc[iii, 'diff'] = np.nan
                     df.loc[iii, 'cumulative'] = np.nan
                     df.loc[iii, '_angle'] = np.nan
                     df.loc[iii, 'interval_len'] = np.nan
                     df.loc[iii, 'interval_z'] = np.nan
-                    # previous = measurement before the NaN
                 else:
                     df.loc[iii, '_diff'] = (df.loc[iii, 'angle'] - previous[1]) % 360.0
                     df.loc[iii, 'diff'] = df.loc[iii, '_diff'] - 360.0 * (df.loc[iii, '_diff'] > 180.0)
@@ -280,5 +273,3 @@ def rhabdomere_computations(df: pd.DataFrame) -> pd.DataFrame:
     return df
     
                         
-            
-    

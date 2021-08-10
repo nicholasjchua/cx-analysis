@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from datetime import date
 
 
-def lamina_subtypes(rgb: bool=False) -> Dict:
+def lamina_celltypes(rgb: bool=False) -> Dict:
     """
     Colour for each neuron category, parsed from the correlation matrix labels
     :param labels: List, with labels of connection types in the format: 'pre->post'
