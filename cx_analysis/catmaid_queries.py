@@ -19,7 +19,10 @@ def do_get(apipath: str, cfg: Config) -> Tuple[bool, str]:
     :return response: True if the request was successful
     :return results: A json of the results if sucessful, a string if not.
     """
-    p_url, token, p_id = cfg.cm_access()
+    p_url = cfg['cm_url']
+    token = cfg['cm_token']
+    p_id = cfg['p_id']
+    
     path = p_url + "/" + str(p_id) + apipath
     result = requests.get(path, headers={'X-Authorization': 'Token ' + token})
 
@@ -53,7 +56,10 @@ def do_post(apipath: str, postdata: Dict, cfg: Config) -> Tuple[bool, str]:
     :return results: A json of the results if successful, a string if not.
     """
 
-    p_url, token, p_id = cfg.cm_access()
+    p_url = cfg['cm_url']
+    token = cfg['cm_token']
+    p_id = cfg['p_id']
+    
     path = p_url + "/" + str(p_id) + apipath
     result = requests.post(path, data=postdata, headers={'X-Authorization': 'Token ' + token})
 
@@ -221,8 +227,8 @@ def node_coords(node_id: str, cfg:Config) -> Tuple:
     :return x, y, z
     """
     x, y, z = fetch_node_data(node_id, cfg)[2: 5]
-    if (x < 20) or (y < 20) or (z < 20):
-        raise Exception("Fetched data might be other node data, not coords. Check the result of fetch_node_data")
+#     if (x < 20) or (y < 20) or (z < 20):
+#         raise Exception("Fetched data might be other node data, not coords. Check the result of fetch_node_data")
     return x, y, z
 
 

@@ -74,7 +74,7 @@ def shortened_st(labels: List) -> List:
     return short_labels
             
 
-def subtype_cm(fp: str="vis/lamina_palette.json", rgb: bool=False, include_spr=True) -> Dict:
+def subtype_cm(fp: str="../cx_analysis/vis/lamina_palette.json", rgb: bool=False, include_spr=True) -> Dict:
     """
     Get map of 'subtype' to 'hex colour' from json file
     :param fp: str, File containing colormap
