@@ -188,14 +188,15 @@ def assemble_rhabdomere_df(full_df: pd.DataFrame) -> pd.DataFrame:
     # TODO: extract other data
     om = []
     cell = []
-
+    c5_offset = 0
     for i in range(0, 29):  # ommatidia
         # excel has 16 rows for each ommatidia, but only 13 have data
-        this_range = full_df.loc[i * 16: i * 16 + 13].reset_index(drop=True)
+        this_range = full_df.loc[i * 16 + c5_offset: i * 16 + 13 + c5_offset].reset_index(drop=True)
         this_om = this_range.iloc[0, 0]
         if this_om == 'C5':  # C5 has an extra row 
             this_range = full_df.loc[i * 16: i * 16 + 14].reset_index(drop=True)
             rows = 11
+            c5_offset += 1
         else:
             rows = 10
         # these cells contain the z-index where each measurement was taken
@@ -218,9 +219,9 @@ def assemble_rhabdomere_df(full_df: pd.DataFrame) -> pd.DataFrame:
             else:
                 z_inds = this_range.iloc[4:, z_col] * -1.0
             
-            if this_st == "R7'":
-                this_st = 'R7p'
-
+#             if this_st == "R7'":
+#                 this_st = 'R7p'
+            #plus_offset = this_range.iloc[4:, ii] + offsets.loc[this_om, 1]
             data.append(pd.DataFrame({'om': [this_om]*rows, 
                                       'subtype': [this_st]*rows, 
                                       'z-index': z_inds, 
