@@ -1,8 +1,14 @@
 .DS_Store
 .idea
+### notebook checkpoints ###
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
+
+### pystuff  ###
 */__pycache__/
 *.py[cod]
 *$py.class
 *.log
+
+### Directories ###
+notebooks/archive/ 
