@@ -11,6 +11,7 @@ import pandas as pd
 import sys
 from os.path import expanduser
 
+#from cx_analysis.connectome import Connectome
 from cx_analysis.skeleton import Skeleton
 
 # Save / Load ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

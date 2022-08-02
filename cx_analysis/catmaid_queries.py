@@ -19,6 +19,7 @@ def do_get(apipath: str, cfg: Config) -> Tuple[bool, str]:
     :return response: True if the request was successful
     :return results: A json of the results if sucessful, a string if not.
     """
+    print(cfg['cm_url'])
     p_url = cfg['cm_url']
     token = cfg['cm_token']
     p_id = cfg['p_id']
