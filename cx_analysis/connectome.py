@@ -36,14 +36,14 @@ class Connectome:
 
     def print_adj_mat(self):
         # TODO get the stuff that formats and prints adjacency matrices from 'connectivity_analysis'
-        A = np.ones((self.adj_mat.shape[0], len(self.cfg.subtypes), len(self.cfg.subtypes)), dtype=int)
+        A = np.ones((self.adj_mat.shape[0], len(self.cfg['subtypes']), len(self.cfg['subtypes'])), dtype=int)
 
     def save_connectome(self, path: str = "", overwrite: bool=False) -> None:
         """
         save Connectome instance as .pickle file
         """
         if path == "":
-            path = self.cfg.out_dir
+            path = self.cfg['out_dir']
         pack_pickle(self, path, "preprocessed")
 
     def assemble_dataframes(self, save=True) -> Tuple:
@@ -55,14 +55,14 @@ class Connectome:
 
     def save_linkdf(self, path: str = "") -> None:
         if path == "":
-            path = self.cfg.out_dir
+            path = self.cfg['out_dir']
 
         pack_pickle(self.linkdf, path, "linkdf")
 
         
     def save_cxdf(self, path: str="") -> None:
         if path == "":
-            path = self.cfg.out_dir
+            path = self.cfg['out_dir']
         pack_pickle(self.cxdf, path, "cxdf")
 
 
@@ -81,7 +81,7 @@ class Connectome:
     def assemble_adj_mat(self) -> np.ndarray:
         id_mat = self.__get_id_mat()
         groups = sorted(self.grouping.keys())
-        subtypes = sorted(self.cfg.subtypes)
+        subtypes = sorted(self.cfg['subtypes'])
 
         adj_mat = np.zeros((len(groups), id_mat.shape[1], id_mat.shape[1]), dtype=int)
 
@@ -110,10 +110,10 @@ class Connectome:
         """
         # Catmaid Access
 
-        skel_ids, neuron_names = skels_in_annot(self.cfg.annot, self.cfg)
+        skel_ids, neuron_names = skels_in_annot(self.cfg['annot'], self.cfg)
         ids_to_names = {s: n for s, n in zip(skel_ids, neuron_names)}
         grouping, ids_to_groups = self.__group_neurons(ids_to_names)
-        print(f"Found {len(skel_ids)} skeletons annotated with {self.cfg.annot}")
+        print(f"Found {len(skel_ids)} skeletons annotated with {self.cfg['annot']}")
 
         skel_data = dict.fromkeys(skel_ids)
 
@@ -136,12 +136,12 @@ class Connectome:
 
         for id, n in ids_to_names.items():
             # neurons should be named omC2_[annotator initials]_[subtype]
-            if self.cfg.groupby == 'annotator':
+            if self.cfg['groupby'] == 'annotator':
                 g_flag = n.split('_')[-1]
-                if g_flag not in self.cfg.annotator_initials:
+                if g_flag not in self.cfg['annotator_initials']:
                     raise Exception(f"Could not find annotator initials in the neuron's name: {n}")
             # neurons should be named 'om[two char id]_[subtype]'
-            elif self.cfg.groupby == 'om':
+            elif self.cfg['groupby'] == 'om':
                 g_flag = n[2:4]
                 if n[0:2] != 'om':
                     raise Exception(f"Could not assign {n} to an ommatidia based on its neuron_name")
@@ -156,8 +156,8 @@ class Connectome:
     def __get_id_mat(self) -> np.array:
 
         group_list = sorted(self.grouping.keys())
-        st_n = {st: n for st, n in zip(self.cfg.subtypes, self.cfg.expected_n)}
-        sts = sorted(self.cfg.subtypes)
+        st_n = {st: n for st, n in zip(self.cfg['subtypes'], self.cfg['expected_n'])}
+        sts = sorted(self.cfg['subtypes'])
         ids = []
         for i, g in enumerate(group_list):
             skels_in_g = self.query_ids_by('group', g)

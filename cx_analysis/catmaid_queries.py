@@ -6,19 +6,20 @@ import requests
 import sys
 from os.path import expanduser
 
-from cx_analysis.config import Config
+#from cx_analysis.config import Config
 
 ####################
 # REQUEST WRAPPERS #
 ####################
 
-def do_get(apipath: str, cfg: Config) -> Tuple[bool, str]:
+def do_get(apipath: str, cfg) -> Tuple[bool, str]:
     """
     Wraps get requests. Performs specific action based on the operation specificed by apipath
     :param apipath: API path for a specific get operation, e.g. '/annotations/'
     :return response: True if the request was successful
     :return results: A json of the results if sucessful, a string if not.
     """
+    print(type(cfg))
     print(cfg['cm_url'])
     p_url = cfg['cm_url']
     token = cfg['cm_token']
@@ -48,7 +49,7 @@ def do_get(apipath: str, cfg: Config) -> Tuple[bool, str]:
         return False, f"Something went wrong with {apipath}, return code was {result.status_code}"
 
 
-def do_post(apipath: str, postdata: Dict, cfg: Config) -> Tuple[bool, str]:
+def do_post(apipath: str, postdata: Dict, cfg) -> Tuple[bool, str]:
     """
     Wraps post requests. Performs specific action based on the operation specificed by apipath
     and the fields in postdata
@@ -87,7 +88,7 @@ def do_post(apipath: str, postdata: Dict, cfg: Config) -> Tuple[bool, str]:
 
 # ANNOTATION QUERIES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-def skels_in_annot(annot: Union[int, str], cfg: Config) -> Tuple[List[str], List[str]]:
+def skels_in_annot(annot: Union[int, str], cfg) -> Tuple[List[str], List[str]]:
     """
     Given an annotation ID, produce lists of skeleton IDs and neuron names
     :param: annot: annotation to query neurons
@@ -115,7 +116,7 @@ def skels_in_annot(annot: Union[int, str], cfg: Config) -> Tuple[List[str], List
 
     return skeleton_ids, neuron_names
 
-def annot_in_skel(skel_id: str, cfg: Config) -> List[str]:
+def annot_in_skel(skel_id: str, cfg) -> List[str]:
     """
     Fetch list of annotations associated with the skeleton ID, raises exception if no annotations found
     :param cfg: Dict, of analysis options
@@ -132,7 +133,7 @@ def annot_in_skel(skel_id: str, cfg: Config) -> List[str]:
     else:
         return annot_list
 
-def annot_to_id(annot: str, cfg: Config) -> int:
+def annot_to_id(annot: str, cfg) -> int:
     """
     Search project for an annotation, get its numerical ID
     :param token: Catmaid API token
@@ -155,7 +156,7 @@ def annot_to_id(annot: str, cfg: Config) -> int:
 
 
 # TREENODE QUERIES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def get_root_id(skel_id: str, cfg: Config, verbose: bool=False) -> str:
+def get_root_id(skel_id: str, cfg, verbose: bool=False) -> str:
     """
     Get the node ID corresponding to the root of a skeleton_id
     :param skel_id: str
@@ -173,7 +174,7 @@ def get_root_id(skel_id: str, cfg: Config, verbose: bool=False) -> str:
         return str(node_id)
 
 
-def fetch_node_data(node_id: str, cfg: Config) -> List:
+def fetch_node_data(node_id: str, cfg) -> List:
     """
     Get data associated with a node ID
     get treenode/{node}/compact-detail gives node data in a slightly diff order than skeletons/{skel}/compact-detail
@@ -189,7 +190,7 @@ def fetch_node_data(node_id: str, cfg: Config) -> List:
     else:
         raise Exception(f"Could not find node with ID: {node_id}")
 
-def node_with_tag(skel_id: str, root_id: str, tag_regex: str, cfg: Config, first: bool=True, verbose: bool=False) -> Union[str, List]:
+def node_with_tag(skel_id: str, root_id: str, tag_regex: str, cfg, first: bool=True, verbose: bool=False) -> Union[str, List]:
     """
     Returns the node_id of the first node in the skeleton tagged with 'tag_regex'
 
@@ -220,7 +221,7 @@ def node_with_tag(skel_id: str, root_id: str, tag_regex: str, cfg: Config, first
         return data
 
 
-def node_coords(node_id: str, cfg:Config) -> Tuple:
+def node_coords(node_id: str, cfg) -> Tuple:
     """
     Get the x, y, z coordinates of a node using fetch_node_data,
     get treenode/{node}/compact-detail gives node data in a slightly diff order than skeletons/{skel}/compact-detail
@@ -234,7 +235,7 @@ def node_coords(node_id: str, cfg:Config) -> Tuple:
 
 
 # SKELETON QUERIES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def skel_compact_detail(skel_id: str, cfg: Config) -> List:
+def skel_compact_detail(skel_id: str, cfg) -> List:
     """
     Returns a list of treenodes for a given skeleton
     The 'post' version of this API call doesn't seem to work, so I don't know how to have 'with_connectors' etc.
@@ -252,7 +253,7 @@ def skel_compact_detail(skel_id: str, cfg: Config) -> List:
 
 
 # CONNECTOR QUERIES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def cx_in_box(x: int, y: int, z: int, l: int, cfg: Config, v_size: int=8) -> Tuple[Dict, Dict]:
+def cx_in_box(x: int, y: int, z: int, l: int, cfg, v_size: int=8) -> Tuple[Dict, Dict]:
     """
     Get a Dict of connectors (pre syn) and postsynaptic nodes bounded by a
     cube starting at coordinates x, y, z with side length l (voxels).
@@ -292,7 +293,7 @@ def cx_in_box(x: int, y: int, z: int, l: int, cfg: Config, v_size: int=8) -> Tup
 
         return pre_coords, post_coords
 
-def cx_in_skel(skel_id: str, cfg: Config, r_nodes: List) -> Tuple:
+def cx_in_skel(skel_id: str, cfg, r_nodes: List) -> Tuple:
     """
     Get a Dict of all connectors PRESYNAPTICally associated with a neuron, and the associated link data
     """
@@ -332,7 +333,7 @@ def cx_in_skel(skel_id: str, cfg: Config, r_nodes: List) -> Tuple:
     return connector_data, link_data, list(r_connectors)
 
  
-def cx_coords(cx_id: str, cfg: Config) -> Tuple:
+def cx_coords(cx_id: str, cfg) -> Tuple:
     """
     cx_coords
     Method to get the (x, y, z) coordinates associated with a connector_id

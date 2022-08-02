@@ -7,43 +7,14 @@ import os.path
 import logging
 from glob import glob
 from typing import List, Tuple, Dict
-from typing import Dict
 from collections import namedtuple
-
-_Config = namedtuple(
-    'Config',
-    [
-        'source',
-        'cm_url',
-        'cm_token',
-        'p_id',
-        'annot',
-        'subtypes',
-        'expected_n',
-        'groupby',
-        'annotator_initials',
-        'min_cx',
-        'save',
-        'log',
-        'out_dir',
-        'restrict',
-    ]
-)
 
 ##################
 # The Config object holds information representing experimental configuration,
 # common to most code used in this library.
 
-class Config(_Config):
 
-    def cm_access(self) -> Tuple:
-        return self.cm_url, self.cm_token, self.p_id
-
-
-##################
-# Class Methods
-
-def parse_cfg_file(path: str="") -> Config:
+def parse_cfg_file(path: str="") -> Dict:
     """
     parse_config_file
     :param path: str (optional), path to a json containing analysis parameters
@@ -153,20 +124,5 @@ def parse_cfg_file(path: str="") -> Config:
     # else:
     #     restrict = cfg['restrict_skeletons']
 
-    return Config(
-        source=fp,
-        cm_url=cm_url,
-        cm_token=cm_token,
-        p_id=p_id,
-        annot=annot,
-        subtypes=subtypes,
-        expected_n=expected_n,
-        groupby=groupby,
-        annotator_initials=annotator_initials,
-        min_cx=min_cx,
-        save=save,
-        log=log,
-        out_dir=out_dir,
-        restrict=restrict
-    )
+    return cfg
 

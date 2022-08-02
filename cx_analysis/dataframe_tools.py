@@ -66,7 +66,7 @@ def assemble_cxdf(C, linkdf) -> Tuple[pd.DataFrame, List, List]:
     :return cxdf, inter, unknowns:
     """
     cx_types = [f"{pre}->{post}"
-                for pre, post in product(C.cfg.subtypes, C.cfg.subtypes)]
+                for pre, post in product(C.cfg['subtypes'], C.cfg['subtypes'])]
 
     om_list = sorted([str(k) for k in C.grouping.keys()])
 

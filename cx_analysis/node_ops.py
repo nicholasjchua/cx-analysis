@@ -5,12 +5,12 @@ from typing import Dict, Union, Tuple, List
 from scipy.spatial import distance
 
 from cx_analysis.catmaid_queries import get_root_id, node_with_tag, skel_compact_detail, node_coords
-from cx_analysis.config import Config
+#from cx_analysis.config import Config
 import sys
 from os.path import expanduser
 
 
-def nodes_betwixt(skel_id: str, cfg: Config, restrict_tags: Union[str, Tuple], node_data: List=None,
+def nodes_betwixt(skel_id: str, cfg, restrict_tags: Union[str, Tuple], node_data: List=None,
                        invert: bool=False) -> Union[List[str], Tuple]:
     """
     Get a list of node_id that are between two tags in the skeleton. Invert will return the complement, the 
@@ -76,7 +76,7 @@ def traverse_nodes(node_data: List, start: int, end: int) -> List:
     return node_ids # as list of ints, but converted to strs in the wrapper above 
 
 
-def segment_skeleton(skel_id: str, cfg: Config, node_data: List=None, restrict_tags: Union[Tuple, str]=None, restrict_nodes: List=None, 
+def segment_skeleton(skel_id: str, cfg, node_data: List=None, restrict_tags: Union[Tuple, str]=None, restrict_nodes: List=None, 
                      verbose: bool=False) -> Dict:
     """
     Get a dict describing the branch structure of a skeleton:
@@ -151,7 +151,7 @@ def _segment_skeleton(node_data: List, segments: Dict, current: int, parent_bran
         raise Exception(f"Current node {current} has no children in node_list")
     
     
-def dist_two_nodes(n1: str, n2: str, cfg: Config=None, coord_map: Dict=None) -> float:
+def dist_two_nodes(n1: str, n2: str, cfg=None, coord_map: Dict=None) -> float:
     
     if (coord_map is None) & (cfg is not None):
         # Will do a catmaid query
@@ -167,7 +167,7 @@ def dist_two_nodes(n1: str, n2: str, cfg: Config=None, coord_map: Dict=None) -> 
     return dist
 
 
-def check_dist(n1: str, n2: str, cfg: Config) -> float:
+def check_dist(n1: str, n2: str, cfg) -> float:
     """
     Raises an exception if two nodes are too close (i.e. lamina_end and root)
     :param n1: str, node_id of root
@@ -183,7 +183,7 @@ def check_dist(n1: str, n2: str, cfg: Config) -> float:
 
 
 
-def find_central_segment(skel_id: str, end_tag: str, cfg: Config, node_data: List=None, restrict_nodes: List=None, verbose: bool=False) -> List:
+def find_central_segment(skel_id: str, end_tag: str, cfg, node_data: List=None, restrict_nodes: List=None, verbose: bool=False) -> List:
     """
     Get a list of nodes between a tagged ending and the root 
     """
@@ -225,7 +225,7 @@ def find_end_points(node_list: List) -> List:
     return end_ids
 
 
-def measure_path_lengths(branch_list: Dict, cfg: Config=None, node_data: List=None) -> Dict:
+def measure_path_lengths(branch_list: Dict, cfg=None, node_data: List=None) -> Dict:
     """
     Measure the path length of each branch segment in a skeleton
     """
@@ -242,7 +242,7 @@ def measure_path_lengths(branch_list: Dict, cfg: Config=None, node_data: List=No
         
     return results
 
-def seg_length(seg: List, cfg: Config=None, coord_map: Dict=None) -> float:
+def seg_length(seg: List, cfg=None, coord_map: Dict=None) -> float:
     """
     Path length of a list of connected nodes
     """
@@ -253,7 +253,7 @@ def seg_length(seg: List, cfg: Config=None, coord_map: Dict=None) -> float:
     return this_len 
 
 
-def measure_seg_distances(branch_list: Dict, cfg: Config=None, node_data: List=None) -> Dict:
+def measure_seg_distances(branch_list: Dict, cfg=None, node_data: List=None) -> Dict:
     """
     Measure the euclidean distance between the first and last node of each branch segment in a 
     skeleton
@@ -271,7 +271,7 @@ def measure_seg_distances(branch_list: Dict, cfg: Config=None, node_data: List=N
     
     return results
 
-def seg_distance(seg: List, cfg: Config=None, coord_map: Dict=None) -> float:
+def seg_distance(seg: List, cfg=None, coord_map: Dict=None) -> float:
     """
     Euclidean distance of the first and last points of a segment
     """
